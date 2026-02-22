@@ -2851,7 +2851,7 @@ def update_channel_name(self, context):
     print('INFO: Channel renamed in', '{:0.2f}'.format((time.time() - T) * 1000), 'ms!')
     wm.yptimer.time = str(time.time())
 
-def get_preview(mat, output=None, advanced=False, normal_viewer=False):
+def get_preview(mat, output=None, advanced=False, normal_viewer=False, normal_space='CAMERA'):
     tree = mat.node_tree
     #nodes = tree.nodes
 
@@ -2876,15 +2876,6 @@ def get_preview(mat, output=None, advanced=False, normal_viewer=False):
             )
         if dirty:
             duplicate_lib_node_tree(preview)
-            #preview.node_tree = preview.node_tree.copy()
-            # Set blend method to alpha
-            #if is_bl_newer_than(2, 80):
-            #    blend_method = mat.blend_method
-            #    mat.blend_method = 'HASHED'
-            #else:
-            #    blend_method = mat.game_settings.alpha_blend
-            #    mat.game_settings.alpha_blend = 'ALPHA'
-            #mat.yp.ori_blend_method = blend_method
     else:
         if normal_viewer:
             preview, dirty = simple_replace_new_node(
@@ -2892,11 +2883,21 @@ def get_preview(mat, output=None, advanced=False, normal_viewer=False):
                 lib.NORMAL_EMISSION_VIEWER,
                 return_status=True, hard_replace=True
             )
+            if dirty:
+                duplicate_lib_node_tree(preview)
         else:
             preview, dirty = simple_replace_new_node(
                 tree, EMISSION_VIEWER, 'ShaderNodeEmission', 'Emission Viewer', 
                 return_status = True
             )
+        # Update the normal space
+        if normal_viewer:
+            transform = preview.node_tree.nodes.get('Vector Transform')
+            if transform: transform.convert_to = normal_space
+
+        # Matcap mode will be applied for camera space
+        inp = preview.inputs.get('Matcap Mode')
+        if inp: inp.default_value = 1.0 if normal_space == 'CAMERA' else 0.0
 
     if dirty:
         preview.hide = True
@@ -3058,7 +3059,7 @@ def update_layer_preview_mode(self, context):
             ch = layer.channels[yp.active_channel_index]
 
             if channel.type == 'NORMAL' and ch.normal_map_type != 'VECTOR_DISPLACEMENT_MAP':
-                preview = get_preview(mat, output, True, True)
+                preview = get_preview(mat, output, True, True, normal_space=yp.preview_mode_normal_space)
             else:
                 preview = get_preview(mat, output, True)
             if not preview: return
@@ -3087,6 +3088,11 @@ def update_layer_preview_mode(self, context):
     else:
         check_all_channel_ios(yp)
         remove_preview(mat)
+
+def update_preview_mode_normal_space(self, context):
+    if self.layer_preview_mode:
+        update_layer_preview_mode(self, context)
+    else: update_preview_mode(self, context)
 
 def update_layer_preview_mode_type(self, context):
     if self.layer_preview_mode:
@@ -3140,7 +3146,7 @@ def update_preview_mode(self, context):
 
         # Use special preview for normal
         if channel.type == 'NORMAL' and (is_from_socket_missing or (from_socket and from_socket == outs[-1])):
-            preview = get_preview(mat, output, False, True)
+            preview = get_preview(mat, output, False, True, normal_space=yp.preview_mode_normal_space)
         else: preview = get_preview(mat, output, False)
 
         # Preview should exists by now
@@ -3958,8 +3964,6 @@ class YPaintChannel(bpy.types.PropertyGroup):
         update = update_channel_parallax
     )
 
-    #parallax_num_of_layers : IntProperty(default=8, min=4, max=128,
-    #        update=update_parallax_num_of_layers)
     parallax_num_of_layers : EnumProperty(
         name = 'Parallax Mapping Number of Layers',
         description = 'Parallax Mapping Number of Layers',
@@ -4309,6 +4313,19 @@ class YPaint(bpy.types.PropertyGroup):
         update = update_preview_mode
     )
 
+    preview_mode_normal_space: EnumProperty(
+        name='Preview Mode Normal Space',
+        description='Preview mode space to normal channel',
+        items=(
+            ('CAMERA', 'View Space',
+             'Encode normal output and transform it into view space.\nNOTE: This also will apply special calculation to make the output looks like a matcap shader.'),
+            ('WORLD', 'World Space', 'Encode normal output and transform it into world space'),
+            ('OBJECT', 'Object Space', 'Encode normal output and transform it into object space'),
+        ),
+        default='CAMERA',
+        update=update_preview_mode_normal_space
+    )
+
     # Disable all vector displacement layers when sculpt mode is on
     sculpt_mode : BoolProperty(default=False, update=update_sculpt_mode)
 
@@ -4320,24 +4337,9 @@ class YPaint(bpy.types.PropertyGroup):
         update = update_layer_preview_mode
     )
 
-    # Mask Preview Mode
-    #mask_preview_mode : BoolProperty(
-    #        name= 'Enable Mask Preview Mode',
-    #        description= 'Enable mask preview mode',
-    #        default=False,
-    #        update=update_mask_preview_mode)
-
     layer_preview_mode_type : EnumProperty(
         name = 'Layer Preview Mode Type',
         description = 'Layer preview mode type',
-        #items = (('LAYER', 'Layer', '', lib.get_icon('mask'), 0),
-        #         ('MASK', 'Mask', '', lib.get_icon('mask'), 1),
-        #         ('SPECIFIC_MASK', 'Specific Mask', '', lib.get_icon('mask'), 2),
-        #         ),
-        #items = (('LAYER', 'Layer', '', 'TEXTURE', 0),
-        #         ('MASK', 'Mask', '', 'MOD_MASK', 1),
-        #         ('SPECIFIC_MASK', 'Specific Mask', '', 'MOD_MASK', 2),
-        #         ),
         items = (
             ('LAYER', 'Layer', ''),
             ('ALPHA', 'Alpha', ''),
@@ -4347,10 +4349,6 @@ class YPaint(bpy.types.PropertyGroup):
         default = 'LAYER',
         update = update_layer_preview_mode_type
     )
-
-    # Mode exclusively for merging mask
-    #merge_mask_mode = BoolProperty(default=False,
-    #        update=update_merge_mask_mode)
 
     # Toggle to use baked results or not
     use_baked : BoolProperty(
@@ -4383,12 +4381,6 @@ class YPaint(bpy.types.PropertyGroup):
         update = update_flip_backface
     )
 
-    # Layer alpha Viewer Mode
-    #enable_layer_alpha_viewer : BoolProperty(
-    #        name= 'Enable Layer Alpha Viewer Mode',
-    #        description= 'Enable layer alpha viewer mode',
-    #        default=False)
-
     # Path folder for auto save bake
     #bake_folder : StringProperty(default='')
 
@@ -4397,14 +4389,6 @@ class YPaint(bpy.types.PropertyGroup):
     #        name = 'Disable Quick Toggle',
     #        description = 'Disable quick toggle to improve shader performance',
     #        default=False, update=update_disable_quick_toggle)
-
-    #performance_mode : EnumProperty(
-    #        name = 'Performance Mode',
-    #        description = 'Performance mode to make this addon useful for various cases',
-    #        items = (('QUICK_TOGGLE', 'Quick toggle, but can be painfully slow if using more than 4 layers', ''),
-    #                 ('SLOW_TOGGLE', 'Slow toggle, but can be useful with many layers', ''),
-    #                 ),
-    #        default='SLOW_TOGGLE')
 
     enable_tangent_sign_hacks : BoolProperty(
         name = 'Enable Tangent Sign VCol Hacks for Blender 2.80+ Cycles',
