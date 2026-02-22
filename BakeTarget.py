@@ -1,0 +1,574 @@
+import bpy, os
+from .common import *
+from bpy.props import *
+
+rgba_items = (
+    ('0', 'R', ''),
+    ('1', 'G', ''),
+    ('2', 'B', ''),
+    ('3', 'A', ''),
+)
+
+normal_type_items = (
+    ('COMBINED', 'Combined Normal', ''),
+    ('DISPLACEMENT', 'Displacement', ''),
+    ('OVERLAY_ONLY', 'Normal Without Bump', ''),
+    ('VECTOR_DISPLACEMENT', 'Vector Displacement', ''),
+)
+
+def update_active_bake_target_index(self, context):
+    yp = self
+    tree = self.id_data
+    try: bt = yp.bake_targets[yp.active_bake_target_index]
+    except: return
+
+    bt_node = tree.nodes.get(bt.image_node)
+    if bt_node and bt_node.image:
+        update_image_editor_image(context, bt_node.image)
+    else:
+        update_image_editor_image(context, None)
+
+class YBakeTargetChannel(bpy.types.PropertyGroup):
+
+    channel_name : StringProperty(
+        name = 'Channel Source Name',
+        description = 'Channel source name for Texture',
+        default = ''
+    )
+
+    subchannel_index : EnumProperty(
+        name = 'Subchannel',
+        description = 'Channel source RGBA index',
+        items = rgba_items,
+        default = '0'
+    )
+
+    default_value : FloatProperty(
+        name = 'Default Value',
+        description = 'Channel default value',
+        subtype = 'FACTOR',
+        default = 0.0, min=0.0, max=1.0
+    )
+
+    normal_type : EnumProperty(
+        name = 'Normal Channel Type',
+        description = 'Normal channel source type',
+        items = normal_type_items,
+        default = 'COMBINED'
+    )
+
+    invert_value : BoolProperty(
+        name = 'Invert Value',
+        description = 'Invert value',
+        default = False
+    )
+
+class YBakeTarget(bpy.types.PropertyGroup):
+    name : StringProperty(
+        name = 'Bake Target Name',
+        description = 'Name for the bake target',
+        default = ''
+    )
+
+    data_type : EnumProperty(
+        name = 'Bake Target Data Type',
+        description = 'Bake target data type',
+        items = (
+            ('IMAGE', 'Image', '', 'IMAGE_DATA', 0),
+            ('VCOL', get_vertex_color_label(), '', 'GROUP_VCOL', 1),
+        ),
+        default = 'IMAGE'
+    )
+
+    use_float : BoolProperty(
+        name = '32-bit Image',
+        description = 'Use 32-bit float image',
+        default = False
+    )
+
+    r : PointerProperty(type=YBakeTargetChannel)
+    g : PointerProperty(type=YBakeTargetChannel)
+    b : PointerProperty(type=YBakeTargetChannel)
+    a : PointerProperty(type=YBakeTargetChannel)
+
+    # Nodes
+    image_node : StringProperty(default='')
+    image_node_outside : StringProperty(default='')
+
+    # UI
+    expand_content : BoolProperty(default=True)
+    expand_r : BoolProperty(default=False)
+    expand_g : BoolProperty(default=False)
+    expand_b : BoolProperty(default=False)
+    expand_a : BoolProperty(default=False)
+
+def update_new_bake_target_preset(self, context):
+    node = get_active_ypaint_node()
+    tree = node.node_tree
+    yp = tree.yp
+
+    tree_name = tree.name.replace(get_addon_title() + ' ', '')
+    if self.preset == 'BLANK':
+        suffix = ' Texture'
+    else: suffix = f"_{self.preset}"
+
+    #self.name = get_unique_name(tree_name + suffix, yp.bake_targets)
+    self.name = get_unique_name(tree_name + suffix, bpy.data.images)
+
+class YNewBakeTarget(bpy.types.Operator):
+    bl_idname = "wm.y_new_bake_target"
+    bl_label = "New Texture"
+    bl_description = "New Texture"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    name : StringProperty(
+        name = 'New Texture Name',
+        description = 'New Texture name',
+        default = ''
+    )
+
+    preset : EnumProperty(
+        name = 'Texture Preset',
+        description = 'Texture preset',
+        items = (
+            ('BLANK', 'Blank', ''),
+            ('BaseColor', 'Base Color', ''),
+            ('MaskMap', 'Mask Map', ''),
+            ('ControlMask', 'Control Mask', ''),
+            ('Normal', 'Normal Map', ''),
+            ('Emissive', 'Emissive Map', ''),
+        ),
+        default = 'BLANK',
+        update = update_new_bake_target_preset
+    )
+
+    use_float : BoolProperty(
+        name = '32-bit Float',
+        description = 'Use 32-bit float image',
+        default = False
+    )
+
+    @classmethod
+    def poll(cls, context):
+        return get_active_ypaint_node()
+
+    def invoke(self, context, event):
+        node = get_active_ypaint_node()
+        tree = node.node_tree
+        yp = tree.yp
+
+        tree_name = tree.name.replace(get_addon_title() + ' ', '')
+        #self.name = get_unique_name(tree_name + ' Texture', yp.bake_targets)
+        self.name = get_unique_name(tree_name + ' Texture', bpy.data.images)
+        return context.window_manager.invoke_props_dialog(self, width=300)
+
+    def draw(self, context):
+
+        row = split_layout(self.layout, 0.3)
+
+        col = row.column(align=False)
+        col.label(text='Name:')
+        col.label(text='Preset:')
+
+        col = row.column(align=False)
+        col.prop(self, 'name', text='')
+        col.prop(self, 'preset', text='')
+        col.prop(self, 'use_float')
+
+    def execute(self, context):
+        wm = context.window_manager
+        node = get_active_ypaint_node()
+        yp = node.node_tree.yp
+        ypui = wm.ypui
+
+        bt = yp.bake_targets.add()
+        bt.name = self.name
+        bt.use_float = self.use_float
+        bt.a.default_value = 1.0
+
+        if self.preset == 'BaseColor':
+            for ch in yp.channels:
+                if ch.type == 'RGB' and ch.name == 'Color':
+                    bt.r.channel_name = ch.name
+                    bt.g.channel_name = ch.name
+                    bt.b.channel_name = ch.name
+                    bt.a.channel_name = ch.name
+
+                    bt.r.subchannel_index = '0'
+                    bt.g.subchannel_index = '1'
+                    bt.b.subchannel_index = '2'
+                    bt.a.subchannel_index = '3'
+
+                elif ch.name in {'Alpha', 'A'}:
+                    bt.a.channel_name = ch.name
+
+        elif self.preset == 'Normal':
+            for ch in yp.channels:
+                if ch.type == 'NORMAL':
+                    bt.r.channel_name = ch.name
+                    bt.g.channel_name = ch.name
+                    bt.b.channel_name = ch.name
+
+                    bt.r.subchannel_index = '0'
+                    bt.g.subchannel_index = '1'
+                    bt.b.subchannel_index = '2'
+
+        elif self.preset == 'MaskMap':
+            bt.a.default_value = 0.01
+            for ch in yp.channels:
+                if ch.name in {'Metallic', 'Metalness', 'M'}:
+                    bt.r.channel_name = ch.name
+                elif ch.name in {'Coat', 'IoR', 'C'}:
+                    bt.g.channel_name = ch.name
+                elif ch.name in {'Roughness', 'R'}:
+                    bt.a.channel_name = ch.name
+                    bt.a.invert_value = True
+
+        elif self.preset == 'ControlMask':
+            bt.a.default_value = 0.0
+
+        elif self.preset == 'Emissive':
+            bt.a.default_value = 0.0
+
+        yp.active_bake_target_index = len(yp.bake_targets)-1
+
+        ypui.bake_target_ui.expand_content = True
+        ypui.need_update = True
+        #wm.yptimer.time = str(time.time())
+        
+        # Update panel
+        context.area.tag_redraw()
+
+        return {'FINISHED'}
+
+class YRemoveBakeTarget(bpy.types.Operator):
+    bl_idname = "wm.y_remove_bake_target"
+    bl_label = "Remove Texture"
+    bl_description = "Remove Texture"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        return get_active_ypaint_node()
+
+    def execute(self, context):
+        wm = context.window_manager
+        node = get_active_ypaint_node()
+        tree = node.node_tree
+        yp = tree.yp
+
+        try: bt = yp.bake_targets[yp.active_bake_target_index]
+        except: return {'CANCELLED'}
+
+        # Remove related nodes
+        remove_node(tree, bt, 'image_node')
+
+        # Remove Texture
+        yp.bake_targets.remove(yp.active_bake_target_index)
+
+        if len(yp.bake_targets) > 0:
+            yp.active_bake_target_index = len(yp.bake_targets)-1
+
+        # Update panel
+        context.area.tag_redraw()
+
+        return {'FINISHED'}
+
+class YCopyBakeTarget(bpy.types.Operator):
+    bl_idname = "wm.y_copy_bake_target"
+    bl_label = "Copy Texture"
+    bl_description = "Copy Texture"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        node = get_active_ypaint_node()
+        if not node: return False
+
+        group_tree = node.node_tree
+        yp = group_tree.yp
+        
+        return context.object and len(yp.bake_targets) > 0 and yp.active_bake_target_index >= 0 
+
+    def execute(self, context):
+        node = get_active_ypaint_node()
+        yp = node.node_tree.yp
+        wmp = context.window_manager.ypprops
+
+        bt = yp.bake_targets[yp.active_bake_target_index]
+
+        wmp.clipboard_bake_target.clear()
+        cbt = wmp.clipboard_bake_target.add()
+
+        cbt.name = bt.name
+        cbt.use_float = bt.use_float
+        cbt.data_type = bt.data_type
+        
+        cbt.r.channel_name = bt.r.channel_name
+        cbt.r.subchannel_index = bt.r.subchannel_index
+        cbt.r.default_value = bt.r.default_value
+        cbt.r.normal_type = bt.r.normal_type
+        cbt.r.invert_value = bt.r.invert_value
+
+        cbt.g.channel_name = bt.g.channel_name
+        cbt.g.subchannel_index = bt.g.subchannel_index
+        cbt.g.default_value = bt.g.default_value
+        cbt.g.normal_type = bt.g.normal_type
+        cbt.g.invert_value = bt.g.invert_value
+
+        cbt.b.channel_name = bt.b.channel_name
+        cbt.b.subchannel_index = bt.b.subchannel_index
+        cbt.b.default_value = bt.b.default_value
+        cbt.b.normal_type = bt.b.normal_type
+        cbt.b.invert_value = bt.b.invert_value
+
+        cbt.a.channel_name = bt.a.channel_name
+        cbt.a.subchannel_index = bt.a.subchannel_index
+        cbt.a.default_value = bt.a.default_value
+        cbt.a.normal_type = bt.a.normal_type
+        cbt.a.invert_value = bt.a.invert_value
+
+        return {'FINISHED'}
+
+class YPasteBakeTarget(bpy.types.Operator):
+    bl_idname = "wm.y_paste_bake_target"
+    bl_label = "Paste Texture As New"
+    bl_description = "Paste Texture"
+    bl_options = {'UNDO'}
+
+    paste_as_new : BoolProperty(
+        name = 'Paste As New Texture',
+        default = True
+    )
+
+    @classmethod
+    def poll(cls, context):
+        node = get_active_ypaint_node()
+
+        wmp = context.window_manager.ypprops
+        has_clipboard = len(wmp.clipboard_bake_target) > 0
+
+        return context.object and node and has_clipboard
+
+    def execute(self, context):
+        node = get_active_ypaint_node()
+        yp = node.node_tree.yp
+        wmp = context.window_manager.ypprops
+
+        if not self.paste_as_new and (yp.active_bake_target_index < 0 or yp.active_bake_target_index >= len(yp.bake_targets) or len(yp.bake_targets) == 0):
+            self.report({'ERROR'}, "Cannot paste values, no Texture selected")
+            return {'CANCELLED'}
+
+        cbt = wmp.clipboard_bake_target[0]
+
+        if self.paste_as_new:
+            name = get_unique_name(cbt.name, yp.bake_targets)
+            bt = yp.bake_targets.add()
+            bt.name = name
+        else:
+            bt = yp.bake_targets[yp.active_bake_target_index]
+            
+        bt.use_float = cbt.use_float
+        bt.data_type = cbt.data_type
+        
+        bt.r.channel_name = cbt.r.channel_name
+        bt.r.subchannel_index = cbt.r.subchannel_index
+        bt.r.default_value = cbt.r.default_value
+        bt.r.normal_type = cbt.r.normal_type
+        bt.r.invert_value = cbt.r.invert_value
+
+        bt.g.channel_name = cbt.g.channel_name
+        bt.g.subchannel_index = cbt.g.subchannel_index
+        bt.g.default_value = cbt.g.default_value
+        bt.g.normal_type = cbt.g.normal_type
+        bt.g.invert_value = cbt.g.invert_value
+
+        bt.b.channel_name = cbt.b.channel_name
+        bt.b.subchannel_index = cbt.b.subchannel_index
+        bt.b.default_value = cbt.b.default_value
+        bt.b.normal_type = cbt.b.normal_type
+        bt.b.invert_value = cbt.b.invert_value
+
+        bt.a.channel_name = cbt.a.channel_name
+        bt.a.subchannel_index = cbt.a.subchannel_index
+        bt.a.default_value = cbt.a.default_value
+        bt.a.normal_type = cbt.a.normal_type
+        bt.a.invert_value = cbt.a.invert_value
+
+        return {'FINISHED'}
+
+class YNewBakeTargetSetup(bpy.types.Operator):
+    bl_idname = "wm.y_new_bake_target_setup"
+    bl_label = "Render Pipeline"
+    bl_description = "Targets a specific Render Pipeline"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    preset: EnumProperty(
+        name='Render Pipeline',
+        description='Targets a specific Render Pipeline',
+        items=(
+            ('CS2', 'CS2', 'Cities Skylines II'),
+        ),
+        default='CS2'
+    )
+
+    def execute(self, context):
+        if self.preset == 'CS2':
+            bpy.ops.wm.y_new_bake_target(preset='BaseColor')
+            bpy.ops.wm.y_new_bake_target(preset='Normal')
+            bpy.ops.wm.y_new_bake_target(preset='MaskMap')
+            bpy.ops.wm.y_new_bake_target(preset='ControlMask')
+            bpy.ops.wm.y_new_bake_target(preset='Emissive')
+
+        return {'FINISHED'}
+
+
+class Yfbx2CS2(bpy.types.Operator):
+    bl_idname = "wm.y_fbx2cs2"
+    bl_label = "Export FBX"
+    bl_description = "Export CS2-compliant mesh as FBX file."
+    bl_options = {'REGISTER', 'INTERNAL'}
+
+    filepath: StringProperty(
+        subtype='FILE_PATH',
+        options={'HIDDEN', 'SKIP_SAVE'}
+    )
+
+    previous_export_filepath: StringProperty(
+        subtype = 'FILE_PATH',
+        options = {'HIDDEN'}
+    )
+
+    def invoke(self, context, event):
+        current_obj_name = context.object.name.replace('.', '-')
+        suggested_name = current_obj_name + '.fbx'
+
+        if bpy.data.is_saved:
+            if self.previous_export_filepath :
+                self.filepath = os.path.join(os.path.dirname(self.previous_export_filepath), suggested_name)
+            else:
+                self.filepath = os.path.join(os.path.dirname(bpy.data.filepath), suggested_name)
+        else:
+            if self.previous_export_filepath:
+                self.filepath = os.path.join(os.path.dirname(self.previous_export_filepath), suggested_name)
+            else:
+                self.filepath = os.path.join(os.path.expanduser("~"), suggested_name)
+
+        context.window_manager.fileselect_add(self)
+        return {'RUNNING_MODAL'}
+
+    def execute(self, context):
+        if context.mode != 'OBJECT':
+            bpy.ops.object.mode_set(mode='OBJECT')
+        obj = context.object
+
+        if obj.type != 'MESH':
+            self.report({'ERROR'}, "Active object must be a mesh.")
+            return {'CANCELLED'}
+
+        bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
+
+        # Force select
+        bpy.context.view_layer.objects.active = obj
+        obj.hide_select = obj.hide_viewport = obj.hide_render = False
+        obj.hide_set(False)
+        obj.select_set(True)
+
+        # Export to FBX
+        try:
+            bpy.ops.export_scene.fbx(
+                filepath=self.filepath,
+                use_selection=True,
+                use_visible=False,
+                use_active_collection=False,
+                global_scale=1.0,
+                apply_unit_scale=True,
+                apply_scale_options='FBX_SCALE_NONE',
+                use_space_transform=True,
+                bake_space_transform=True,
+                object_types={'MESH'},
+                use_mesh_modifiers=True,
+                use_mesh_modifiers_render=False,
+                mesh_smooth_type='OFF',
+                colors_type='SRGB',
+                prioritize_active_color=False,
+                use_subsurf=False,
+                use_mesh_edges=False,
+                use_tspace=False,
+                use_triangles=True,
+                use_custom_props=False,
+                add_leaf_bones=False,
+                bake_anim=False,
+                path_mode='AUTO',
+                embed_textures=False,
+                batch_mode='OFF',
+                use_batch_own_dir=False,
+                use_metadata=False,
+                axis_forward='-Z',
+                axis_up='Y'
+            )
+
+        except Exception as e:
+            self.report({'ERROR'}, f"Export failed: {str(e)}")
+            return {'CANCELLED'}
+
+        self.previous_export_filepath = self.filepath  # Saves the filepath to the prop, ready to be recalled next time
+
+        self.report({'INFO'}, f"{os.path.basename(self.filepath)} saved")
+        return {'FINISHED'}
+
+
+class YCS2checks(bpy.types.Operator):
+    bl_idname = "wm.y_cs2_checks"
+    bl_label = "CS2 checkup"
+    bl_description = "Match names. object = mesh = material"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        if context.mode != 'OBJECT':
+            bpy.ops.object.mode_set(mode='OBJECT')
+        obj = context.object
+        if obj.type != 'MESH':
+            self.report({'ERROR'}, "Active object must be a mesh.")
+            return {'CANCELLED'}
+
+        objname = obj.name \
+            .replace("_", "-") \
+            .replace("-LOD0", "") \
+            .replace("-LOD", "_LOD")
+
+        # Rename Mesh Data to Object Name
+        if obj.data:
+            obj.data.name = objname
+            obj.name = objname
+
+        # Rename Materials to Object Name
+        # Note: If you have multiple materials, Blender will auto-suffix them (e.g., Name.001)
+        for slot in obj.material_slots:
+            if slot.material:
+                slot.material.name = objname
+
+        self.report({'INFO'}, f"Prepared: {objname}")
+        return {'FINISHED'}
+
+def register():
+    bpy.utils.register_class(YNewBakeTarget)
+    bpy.utils.register_class(YRemoveBakeTarget)
+    bpy.utils.register_class(YBakeTargetChannel)
+    bpy.utils.register_class(YBakeTarget)
+    bpy.utils.register_class(YCopyBakeTarget)
+    bpy.utils.register_class(YPasteBakeTarget)
+    bpy.utils.register_class(YNewBakeTargetSetup)
+    bpy.utils.register_class(YCS2checks)
+    bpy.utils.register_class(Yfbx2CS2)
+    
+def unregister():
+    bpy.utils.unregister_class(YNewBakeTarget)
+    bpy.utils.unregister_class(YRemoveBakeTarget)
+    bpy.utils.unregister_class(YBakeTargetChannel)
+    bpy.utils.unregister_class(YBakeTarget)
+    bpy.utils.unregister_class(YCopyBakeTarget)
+    bpy.utils.unregister_class(YPasteBakeTarget)
+    bpy.utils.unregister_class(YNewBakeTargetSetup)
+    bpy.utils.unregister_class(YCS2checks)
+    bpy.utils.unregister_class(Yfbx2CS2)
