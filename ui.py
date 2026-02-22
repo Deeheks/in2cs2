@@ -381,11 +381,10 @@ def draw_image_props(context, source, layout, entity=None, show_flip_y=False, sh
     split = split_layout(col, 0.4)
 
     scol = split.column()
-    if not image.is_dirty:
-        scol.label(text='Color Space:')
-        if hasattr(image, 'use_alpha'):
-            scol.label(text='Use Alpha:')
-        scol.label(text='Alpha Mode:')
+    scol.label(text='Color Space:')
+    if hasattr(image, 'use_alpha'):
+        scol.label(text='Use Alpha:')
+    scol.label(text='Alpha Mode:')
 
     scol.label(text='Interpolation:')
 
@@ -401,6 +400,11 @@ def draw_image_props(context, source, layout, entity=None, show_flip_y=False, sh
         if hasattr(image, 'use_alpha'):
             scol.prop(image, 'use_alpha', text='')
         scol.prop(image, 'alpha_mode', text='')
+    else:
+        scol.label(text=image.colorspace_settings.name)
+        if hasattr(image, 'use_alpha'):
+            scol.label(text='True' if image.use_alpha else 'False')
+        scol.label(text=alpha_mode_labels[image.alpha_mode])
 
     scol.prop(source, 'interpolation', text='')
 
@@ -4228,7 +4232,7 @@ def draw_layers_ui(context, layout, node):
 
 def draw_test_ui(context, layout):
     ypup = get_user_preferences()
-    if (ypup.developer_mode == True):
+    if ypup.developer_mode:
         wm = context.window_manager
         ypui = wm.ypui
         wmyp = wm.ypprops
@@ -4248,7 +4252,7 @@ def draw_test_ui(context, layout):
             row.prop(ypui, 'show_test', emboss=False, text='', icon=icon)
             row.label(text='Test')
 
-        if (ypui.show_test):
+        if ypui.show_test:
             box = layout.box()
             col = box.column()
 
@@ -4256,7 +4260,7 @@ def draw_test_ui(context, layout):
             if obj and obj.name == 'Cube' and mat and mat.name == 'Material' and not node:
                 col.operator('wm.y_run_automated_test')
 
-            if (wmyp.test_result_run != 0):
+            if wmyp.test_result_run != 0:
                 col.label(text=pgettext_iface('Test Run Count: ') + str(wmyp.test_result_run))
                 col.label(text=pgettext_iface('Test Error Count: ') + str(wmyp.test_result_error))
                 col.label(text=pgettext_iface('Test Failed Count: ') + str(wmyp.test_result_failed))
@@ -4375,7 +4379,7 @@ def main_draw(self, context):
     if ypui.show_materials:
         is_sortable = len(obj.material_slots) > 1
         rows = 2
-        if (is_sortable):
+        if is_sortable:
             rows = 4
         box = layout.box()
         row = box.row()
