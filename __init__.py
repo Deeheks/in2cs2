@@ -52,7 +52,7 @@ else:
     from . import Localization
     from . import BaseOperator, image_ops, common, bake_common, modifier_common, lib, Decal, ui, subtree, transition_common, input_outputs, node_arrangements, node_connections, preferences
     from . import vector_displacement_lib, vector_displacement
-    from . import vcol_editor, transition, BakeTarget, BakeInfo, UDIM, ImageAtlas, MaskModifier, Mask, Modifier, NormalMapModifier, Layer, ListItem, Bake, BakeToLayer, Root, versioning
+    from . import vcol_editor, transition, BakeTarget, CS2_specific, BakeInfo, UDIM, ImageAtlas, MaskModifier, Mask, Modifier, NormalMapModifier, Layer, ListItem, Bake, BakeToLayer, Root, versioning
     from . import Test
     from . import credits_ui
 
@@ -70,6 +70,7 @@ def register():
     transition.register()
     vector_displacement.register()
     BakeTarget.register()
+    CS2_specific.register()
     BakeInfo.register()
     UDIM.register()
     ImageAtlas.register()
@@ -101,6 +102,7 @@ def unregister():
     transition.unregister()
     vector_displacement.unregister()
     BakeTarget.unregister()
+    CS2_specific.unregister()
     BakeInfo.unregister()
     UDIM.unregister()
     ImageAtlas.unregister()

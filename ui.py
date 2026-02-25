@@ -4,6 +4,7 @@ from bpy.app.handlers import persistent
 from bpy.app.translations import pgettext_iface
 from . import lib, Modifier, MaskModifier, UDIM, ListItem, Decal
 from .common import *
+from .CS2_specific import *
 from .credits_ui import get_collaborators, check_contributors
 
 USE_CACHE_DELTA = 1000
@@ -4307,6 +4308,38 @@ def main_draw(self, context):
 
     layout = self.layout
 
+    # CS2 asset pipeline specific checks
+
+    if mat:
+        if mat.name != obj.data.name or obj.data.name != obj.name:
+            icon = 'ERROR'
+            if obj.data.name != obj.name:
+                icon = 'MESH_DATA'
+                row = layout.row(align=True)
+                rrow = row.row(align=True)
+                rrow.label(text="Mesh Name must match Object", icon='ERROR')
+            if mat.name != obj.name:
+                icon = 'MATERIAL_DATA'
+                row = layout.row(align=True)
+                rrow = row.row(align=True)
+                rrow.label(text="Material Name must match Object", icon='ERROR')
+            row = layout.row(align=True)
+            rrow = row.row(align=True)
+            rrow.operator('wm.y_match_names', text='Fix naming', icon=icon)
+        else:
+            row = layout.row(align=True)
+            rrow = row.row(align=True)
+            rrow.operator('wm.y_export_mesh', text='FBX Export as ...', icon='EXPORT')
+
+    if not is_scene_unit_metric(context.scene):
+        row = layout.row(align=True)
+        rrow = row.row(align=True)
+        rrow.label(text="Scene units not set to Metric", icon='ERROR')
+    elif not is_scene_unit_one_meter(context.scene):
+        row = layout.row(align=True)
+        rrow = row.row(align=True)
+        rrow.label(text="Scene units should be 1 meter", icon='ERROR')
+
     icon = 'TRIA_DOWN' if ypui.show_object else 'TRIA_RIGHT'
     row = layout.row(align=True)
     rrow = row.row(align=True)
@@ -4327,17 +4360,12 @@ def main_draw(self, context):
 
     # Replacing header popovers with CS2 mesh/material naming checks
 
-    # if not is_bl_newer_than(2, 80):
-    #     rrow.menu("NODE_MT_ypaint_about_menu", text='', icon='INFO')
-    # else:
-    #     row.popover("NODE_PT_ypaint_about_popover", text='', icon='HELP')
-    #     row.popover('VIEW3D_PT_ypaint_support_ui', text='', icon='FUND')
+    if not is_bl_newer_than(2, 80):
+        rrow.menu("NODE_MT_ypaint_about_menu", text='', icon='INFO')
+    else:
+        row.popover("NODE_PT_ypaint_about_popover", text='', icon='HELP')
+        row.popover('VIEW3D_PT_ypaint_support_ui', text='', icon='FUND')
 
-    if mat:
-        if mat.name != obj.data.name or obj.data.name != obj.name:
-            rrow.operator('wm.y_cs2_checks', text='Fix naming', icon='ERROR')
-        else:
-            rrow.operator('wm.y_fbx2cs2', text='FBX Export', icon='EXPORT')
 
     if ypui.show_object:
         box = layout.box()
@@ -4457,7 +4485,7 @@ def main_draw(self, context):
                 rrow.prop(mat, 'use_transparent_shadow', text='')
 
     if not node:
-        layout.label(text="No active " + get_addon_title() + " node!", icon='ERROR')
+        layout.separator()
         layout.operator("wm.y_quick_ypaint_node_setup", icon_value=lib.get_icon('nodetree'))
 
         # Test
@@ -4523,7 +4551,7 @@ def main_draw(self, context):
     #row.prop(node.node_tree, 'name', text='')
 
     icon = 'PREFERENCES' if is_bl_newer_than(2, 80) else 'SCRIPTWIN'
-    row.menu("NODE_MT_ypaint_special_menu", text='', icon=icon)
+    row.menu("NODE_MT_ypaint_main_menu", text='', icon=icon)
 
     # Check for baked node
     baked_found = False
@@ -4790,8 +4818,10 @@ class NODE_PT_YPaintUI(bpy.types.Panel):
 
     @classmethod
     def poll(cls, context):
-        return (context.object and context.object.type in possible_object_types 
-                and context.scene.render.engine in {'CYCLES', 'BLENDER_EEVEE', 'BLENDER_EEVEE_NEXT', 'HYDRA_STORM'} and context.space_data.tree_type == 'ShaderNodeTree')
+        return (context.object
+                and context.object.type in possible_object_types
+                and context.scene.render.engine in {'CYCLES', 'BLENDER_EEVEE', 'BLENDER_EEVEE_NEXT', 'HYDRA_STORM'}
+                and context.space_data.tree_type == 'ShaderNodeTree')
 
     def draw(self, context):
         main_draw(self, context)
@@ -4804,7 +4834,9 @@ class VIEW3D_PT_YPaint_tools(bpy.types.Panel):
 
     @classmethod
     def poll(cls, context):
-        return context.object and context.object.type in possible_object_types and context.scene.render.engine in {'CYCLES', 'BLENDER_EEVEE', 'BLENDER_EEVEE_NEXT', 'HYDRA_STORM'}
+        return (context.object
+                and context.object.type in possible_object_types
+                and context.scene.render.engine in {'CYCLES', 'BLENDER_EEVEE', 'BLENDER_EEVEE_NEXT', 'HYDRA_STORM'})
 
     def draw(self, context):
         main_draw(self, context)
@@ -4819,23 +4851,10 @@ class VIEW3D_PT_YPaint_ui(bpy.types.Panel):
 
     @classmethod
     def poll(cls, context):
-        return context.object and context.object.type in possible_object_types and context.scene.render.engine in {'CYCLES', 'BLENDER_EEVEE', 'BLENDER_EEVEE_NEXT', 'HYDRA_STORM'}
+        return (context.object
+                and context.object.type in possible_object_types
+                and context.scene.render.engine in {'CYCLES', 'BLENDER_EEVEE', 'BLENDER_EEVEE_NEXT', 'HYDRA_STORM'})
 
-    #def draw_header_preset(self, context):
-    #    layout = self.layout
-    #    row = layout.row(align=True)
-
-    #    threshold = 250 * context.preferences.system.ui_scale
-    #    if context.region.width > threshold:
-    #        row.popover('VIEW3D_PT_ypaint_support_ui', text="Support Us", icon='FUND')
-    #    else:
-    #        row.popover('VIEW3D_PT_ypaint_support_ui', text='', icon='FUND')
-
-    #def draw_header_preset(self, context):
-    #    layout = self.layout
-    #    row = layout.row(align=True)
-
-    #    row.popover("NODE_PT_ypaint_about_popover", text='', icon='INFO')
     def draw(self, context):
         main_draw(self, context)
 
@@ -5856,10 +5875,10 @@ class YPaintAboutMenu(bpy.types.Menu):
     def draw(self, context):
         draw_ypaint_about(self, context)
 
-class YPaintSpecialMenu(bpy.types.Menu):
-    bl_idname = "NODE_MT_ypaint_special_menu"
-    bl_label = get_addon_title() + " Special Menu"
-    bl_description = get_addon_title() + " Special Menu"
+class YPaintMainMenu(bpy.types.Menu):
+    bl_idname = "NODE_MT_ypaint_main_menu"
+    bl_label = get_addon_title() + " Main Menu"
+    bl_description = get_addon_title() + " Main Menu"
 
     @classmethod
     def poll(cls, context):
@@ -8266,8 +8285,7 @@ def register():
         bpy.utils.register_class(YPaintAboutPopover)
         bpy.utils.register_class(YListItemOptionPopover)
 
-
-    bpy.utils.register_class(YPaintSpecialMenu)
+    bpy.utils.register_class(YPaintMainMenu)
     bpy.utils.register_class(YNewChannelMenu)
     bpy.utils.register_class(YNewLayerMenu)
     bpy.utils.register_class(YBakeTargetMenu)
@@ -8356,7 +8374,7 @@ def unregister():
         bpy.utils.unregister_class(YPaintAboutPopover)
         bpy.utils.unregister_class(YListItemOptionPopover)
 
-    bpy.utils.unregister_class(YPaintSpecialMenu)
+    bpy.utils.unregister_class(YPaintMainMenu)
     bpy.utils.unregister_class(YNewChannelMenu)
     bpy.utils.unregister_class(YNewLayerMenu)
     bpy.utils.unregister_class(YBakeTargetMenu)

@@ -44,7 +44,7 @@ class YBakeInfoProps(bpy.types.PropertyGroup):
     margin : IntProperty(
         name = 'Bake Margin',
         description = 'Bake margin in pixels',
-        subtype = 'PIXEL',
+        #subtype = 'PIXEL',
         default=5, min=0
     )
 
