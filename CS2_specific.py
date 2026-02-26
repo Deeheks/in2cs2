@@ -1,7 +1,8 @@
-import bpy, os
-from mathutils import Matrix
+import bpy
 from bpy.props import *
+
 from .common import *
+
 
 def is_scene_unit_metric(scene):
     units = scene.unit_settings
@@ -25,26 +26,18 @@ def is_scene_unit_one_meter(scene):
 def has_pending_transforms(obj):
     """Returns True if transforms are not applied (Location 0, Rotation 0, Scale 1)."""
     # Precision threshold for floating point math
-    eps = 0.0001
-
-    # Check Location
-    if obj.location.length > eps:
+    if obj.location.length > 0.0001:
         return True
 
-    # Check Rotation (Handles Euler, Quaternion, and Axis Angle)
-    if obj.rotation_mode == 'QUATERNION':
-        if abs(1.0 - obj.rotation_quaternion.w) > eps:
-            return True
-    elif obj.rotation_mode == 'AXIS_ANGLE':
-        if abs(obj.rotation_axis_angle[0]) > eps:
-            return True
-    else:  # Euler
-        if obj.rotation_euler.to_vector().length > eps:
-            return True
-
-    # Check Scale (Should be 1.0, 1.0, 1.0)
-    if any(abs(s - 1.0) > eps for s in obj.scale):
+        # Check Rotation (should be Euler 0,0,0 or Identity Quaternion)
+    if obj.rotation_euler.to_matrix().is_identity is False:
         return True
+
+        # Check Scale (should be 1,1,1)
+        # We check if the scale deviates from 1.0 significantly
+    for s in obj.scale:
+        if abs(1.0 - s) > 0.0001:
+            return True
 
     return False
 
@@ -59,13 +52,16 @@ class YMatchNames(bpy.types.Operator):
         if context.mode != 'OBJECT':
             bpy.ops.object.mode_set(mode='OBJECT')
         obj = context.object
-        if obj.type != 'MESH':
-            self.report({'ERROR'}, "Active object must be a mesh.")
-            return {'CANCELLED'}
 
+# https://cs2.paradoxwikis.com/Asset_Pipeline:_Buildings#Sub_Meshes
         objname = obj.name \
             .replace("_", "-") \
             .replace("-LOD0", "") \
+            .replace("-Gls", "_Gls") \
+            .replace("-Win", "_Win") \
+            .replace("-Wim", "_Wim") \
+            .replace("-Gra", "_Gra") \
+            .replace("-Wat", "_Wat") \
             .replace("-LOD", "_LOD")
 
         # Rename Mesh Data to Object Name
@@ -128,15 +124,6 @@ class YExportMesh(bpy.types.Operator):
         return {'RUNNING_MODAL'}
 
     def execute(self, context):
-        if context.mode != 'OBJECT':
-            bpy.ops.object.mode_set(mode='OBJECT')
-        obj = context.object
-
-        if obj.type != 'MESH':
-            self.report({'ERROR'}, "Active object must be a mesh.")
-            return {'CANCELLED'}
-
-        # Export to FBX
         try:
             bpy.ops.export_scene.fbx(
                 filepath=self.filepath,

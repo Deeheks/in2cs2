@@ -116,8 +116,8 @@ class YCollaboratorPagingButton(bpy.types.Operator):
     
 class YSponsorPopover(bpy.types.Panel):
     bl_idname = "NODE_PT_ysponsor_popover"
-    bl_label = "ucuPaint Sponsor Menu"
-    bl_description = "ucuPaint Sponsor Menu"
+    bl_label = "ucupaint Sponsor Menu"
+    bl_description = "ucupaint Sponsor Menu"
     bl_space_type = "VIEW_3D"
     bl_region_type = "WINDOW"
     bl_ui_units_x = 15
@@ -201,7 +201,7 @@ class YSponsorProp(bpy.types.PropertyGroup):
 
     expand_description : bpy.props.BoolProperty(
         default = False,
-        description = "ucuPaint's sponsor is updated daily",
+        description = "ucupaint's sponsor is updated daily",
     )
 
     initialized : bpy.props.BoolProperty(
@@ -231,7 +231,7 @@ class YSponsorProp(bpy.types.PropertyGroup):
 
 class VIEW3D_PT_YPaint_support_ui(bpy.types.Panel):
     bl_idname = "VIEW3D_PT_ypaint_support_ui"
-    bl_label = "Support ucuPaint"
+    bl_label = "Support ucupaint"
     bl_space_type = 'VIEW_3D'
     #bl_context = "object"
     # bl_region_type = 'UI'
@@ -432,7 +432,7 @@ class VIEW3D_PT_YPaint_support_ui(bpy.types.Panel):
 
         row = layout.row()
         row.alignment = 'CENTER'
-        row.label(text='Support ucuPaint!', icon='ARMATURE_DATA')
+        row.label(text='Support ucupaint!', icon='ARMATURE_DATA')
 
         goal = collaborators.sponsorships
         goal_ui = context.window_manager.ypui_credits
@@ -444,7 +444,7 @@ class VIEW3D_PT_YPaint_support_ui(bpy.types.Panel):
 
             row_title = layout.row(align=True)
             row_title.alignment = 'CENTER'
-            row_title.label(text= "ucuPaint's goal : $" + str(goal['targetValue']) + "/month")
+            row_title.label(text= "ucupaint's goal : $" + str(goal['targetValue']) + "/month")
 
             # paging_layout = row_title.row(align=True)
             # paging_layout.alignment = 'RIGHT'
