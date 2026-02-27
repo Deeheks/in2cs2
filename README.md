@@ -1,31 +1,45 @@
-# Ucupaint
-Ucupaint is a Blender add-on that manages texture layers for the Eevee and Cycles renderers. 
+## About in2cs2
 
-### Compatibility
-Ucupaint works with all official versions of Blender starting from Blender 2.76, but some features are only available on more modern versions of Blender.
+- Based on **ucupaint** Blender addon
+   - years of development and artists usage and feedback
+   - free alternative to Substance Painter and/or Photoshop (although still useful next to it)
+- Works on **any Blender version** (2.7 until 5.1)
+- Bake textures **directly to CS2 render pipeline** without leaving Blender  
+   - no need to swizzle channels in Photoshop, superPNG!
+   - work from Blender directly into Cities Skylines 2 editor
 
-### Installation
-Go to the [Releases page](https://github.com/ucupumar/ucupaint/releases) and download according to your Blender version. 
-Open Blender, go to _Edit > Preferences > Add-ons_, press the _Install_ button, browse your downloaded addon zip file, and click _Install Add-on_.
+> *About ucupaint*
+> - Ucupaint Download/Repo : [https://github.com/ucupumar/ucupaint](https://github.com/ucupumar/ucupaint "https://github.com/ucupumar/ucupaint")
+> - Ucupaint Wiki/Documentation : [https://ucupumar.github.io/ucupaint-wiki/](https://ucupumar.github.io/ucupaint-wiki/ "https://ucupumar.github.io/ucupaint-wiki/")
 
-### Installation from Extension Platform
-Ucupaint is also available on [Blender Extension Platform](https://extensions.blender.org/add-ons/ucupaint/). 
-It means for Blender 4.2+, you can just search for 'Ucupaint' in _Edit > Preferences > Get Extensions_.
-Be aware that this version has no branch selection, which can be useful for testing new features.
+### Who is in2cs2 for
 
-### Location
-Select an object that can have a material (mesh, curve, etc) and Ucupaint is accessible on:
-- **Blender 2.7x**: View 3D > Tool Shelf > Ucupaint
-- **Blender 2.80+**: View 3D or Node Editor > Sidebar > Ucupaint
+Cities Skylines II asset creators from beginner to expert.
 
-### Documentation & Demo
-Please read the [wiki](https://ucupumar.github.io/ucupaint-wiki/) to see the documentation and demo. It's not 100% complete yet, but it still can help you get started.  
-To contribute to the wiki, you can go to the [wiki repo](https://github.com/ucupumar/ucupaint-wiki).
+- Improve your creation workflow
+- Bake with confidence thanks to the ucupaint underlying system
+- Save time on redundant operations and verifications
 
-### Discord Server
-You can join [Ucupaint Discord](https://discord.gg/BdNfGGzQHh) to ask or discuss things related to Ucupaint  
+### CitiesSkylines2 specific features
 
+*Modelling*  
+- **Scene units and scale** validation (avoid missed exports)
+   - warns user if scene unit is not Metric
+   - warns user if unit scale is not 1:1
+- **Naming convention** with function to Fix names
+   - matches material and object name
+   - matches mesh and object name
+   - supports all possible LOD types and submesh prefixes
+- **Smart FBX export** function (file named after the object)
+   - supports modifiers (non-destructive export)
+   - supports non-zeroed location (applies only Rotation and Scale)
+      - allows side-by-side asset placement in the scene
+      - prevents missed exports with bad scaling or Z-up imported meshes
 
-![00-yang_guifei](https://user-images.githubusercontent.com/5253453/169109136-7349e7cd-0416-47f1-afda-ba3633d7bd20.jpg)
-
-
+*Texturing*  
+- Bakes to any supported sizes (512, 1024, 2048 or 4096)  
+- CS2-compliant texture maps
+   - auto-binding to Principled BSDF shader
+- One-click **Save CS2 textures**,
+   - no need to rename or convert files
+   - import-ready, each and every time!

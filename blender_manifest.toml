@@ -1,7 +1,7 @@
 schema_version = "1.0.0"
 
 id = "in2cs2"
-version = "3.0.244"
+version = "2.4.4"
 name = "in2cs2"
 tagline = "Layer based painting for Eevee and Cycles"
 maintainer = "Deeheks"

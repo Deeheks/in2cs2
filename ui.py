@@ -4307,9 +4307,8 @@ def main_draw(self, context):
     node = get_active_ypaint_node()
 
     layout = self.layout
-
+    row = layout.row(align=True)
     # CS2 asset pipeline specific checks
-
     if mat:
         if mat.name != obj.data.name or obj.data.name != obj.name:
             icon = 'ERROR'
@@ -4317,19 +4316,26 @@ def main_draw(self, context):
                 icon = 'MESH_DATA'
                 row = layout.row(align=True)
                 rrow = row.row(align=True)
-                rrow.label(text="Mesh Name must match Object", icon='ERROR')
+                rrow.label(text="Mesh Name mismatch", icon='ERROR')
             if mat.name != obj.name:
                 icon = 'MATERIAL_DATA'
                 row = layout.row(align=True)
                 rrow = row.row(align=True)
-                rrow.label(text="Material Name must match Object", icon='ERROR')
+                rrow.label(text="Material Name mismatch", icon='ERROR')
             row = layout.row(align=True)
             rrow = row.row(align=True)
             rrow.operator('wm.y_match_names', text='Fix naming', icon=icon)
         else:
-            row = layout.row(align=True)
             rrow = row.row(align=True)
             rrow.operator('wm.y_export_mesh', text='FBX Export as ...', icon='EXPORT')
+
+    if not is_bl_newer_than(2, 80):
+        row.menu("NODE_MT_ypaint_about_addon_menu", text='', icon='QUESTION')
+        row.menu("NODE_MT_ypaint_about_menu", text='', icon='INFO')
+    else:
+        row.popover("NODE_PT_ypaint_about_addon_popover", text='', icon='HELP')
+        row.popover("NODE_PT_ypaint_about_popover", text='', icon='COMMUNITY')
+        row.popover('VIEW3D_PT_ypaint_support_ui', text='', icon='FUND')
 
     if not is_scene_unit_metric(context.scene):
         row = layout.row(align=True)
@@ -4357,15 +4363,6 @@ def main_draw(self, context):
 
     rrow = row.row(align=True)
     rrow.alignment = 'RIGHT'
-
-    # Replacing header popovers with CS2 mesh/material naming checks
-
-    if not is_bl_newer_than(2, 80):
-        rrow.menu("NODE_MT_ypaint_about_menu", text='', icon='INFO')
-    else:
-        row.popover("NODE_PT_ypaint_about_popover", text='', icon='HELP')
-        row.popover('VIEW3D_PT_ypaint_support_ui', text='', icon='FUND')
-
 
     if ypui.show_object:
         box = layout.box()
@@ -5849,6 +5846,21 @@ def draw_ypaint_about(self, context):
     # for cl, key in enumerate(previews_users.contributors.keys()):
     #     col.operator('wm.url_open', text=key, icon=icon_name).url = previews_users.contributors[key]["url"]
 
+def draw_ypaint_about_addon(self, context):
+    col = self.layout.column(align=True)
+
+    row_title = col.row(align=True)
+    row_title_label = row_title.row(align=True)
+    row_title_label.label(text=get_addon_title() + ' is developped by: Deeheks')
+
+    col.separator()
+
+    col.label(text='Links:')
+    col.operator('wm.url_open', text=get_addon_title() + ' GitHub', icon='SCRIPT').url = 'https://github.com/deeheks/in2cs2'
+    col.operator('wm.url_open', text='CS2 Modding Wiki', icon='TEXT').url = 'https://cs2.paradoxwikis.com/Asset_Creation_Guide'
+    icon = 'COMMUNITY' if is_bl_newer_than(2, 80) else 'SEQ_SEQUENCER'
+    col.operator('wm.url_open', text='CSModding Discord', icon=icon).url = 'https://discord.gg/DgH7rDKZ6r'
+
 class YPaintAboutPopover(bpy.types.Panel):
     bl_idname = "NODE_PT_ypaint_about_popover"
     bl_label = "About ucupaint"
@@ -5863,6 +5875,20 @@ class YPaintAboutPopover(bpy.types.Panel):
     def draw(self, context):
         draw_ypaint_about(self, context)
 
+class YPaintAboutAddonPopover(bpy.types.Panel):
+    bl_idname = "NODE_PT_ypaint_about_addon_popover"
+    bl_label = "About " + get_addon_title()
+    bl_description = "About " + get_addon_title()
+    bl_space_type = "VIEW_3D"
+    bl_region_type = "WINDOW"
+
+    @classmethod
+    def poll(cls, context):
+        return True
+
+    def draw(self, context):
+        draw_ypaint_about_addon(self, context)
+
 class YPaintAboutMenu(bpy.types.Menu):
     bl_idname = "NODE_MT_ypaint_about_menu"
     bl_label = "About ucupaint"
@@ -5874,6 +5900,18 @@ class YPaintAboutMenu(bpy.types.Menu):
 
     def draw(self, context):
         draw_ypaint_about(self, context)
+
+class YPaintAboutAddon(bpy.types.Menu):
+    bl_idname = "NODE_MT_ypaint_about_addon"
+    bl_label = "About " + get_addon_title()
+    bl_description = "About " + get_addon_title()
+
+    @classmethod
+    def poll(cls, context):
+        return True
+
+    def draw(self, context):
+        draw_ypaint_about_addon(self, context)
 
 class YPaintMainMenu(bpy.types.Menu):
     bl_idname = "NODE_MT_ypaint_main_menu"
@@ -8280,9 +8318,11 @@ def register():
 
     if not is_bl_newer_than(2, 80):
         bpy.utils.register_class(YPaintAboutMenu)
+        bpy.utils.register_class(YPaintAboutAddon)
         bpy.utils.register_class(YListItemOptionMenu)
     else: 
         bpy.utils.register_class(YPaintAboutPopover)
+        bpy.utils.register_class(YPaintAboutAddonPopover)
         bpy.utils.register_class(YListItemOptionPopover)
 
     bpy.utils.register_class(YPaintMainMenu)
@@ -8369,9 +8409,11 @@ def unregister():
 
     if not is_bl_newer_than(2, 80):
         bpy.utils.unregister_class(YPaintAboutMenu)
+        bpy.utils.unregister_class(YPaintAboutAddon)
         bpy.utils.unregister_class(YListItemOptionMenu)
     else: 
         bpy.utils.unregister_class(YPaintAboutPopover)
+        bpy.utils.unregister_class(YPaintAboutAddonPopover)
         bpy.utils.unregister_class(YListItemOptionPopover)
 
     bpy.utils.unregister_class(YPaintMainMenu)

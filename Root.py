@@ -508,7 +508,7 @@ class YQuickYPaintNodeSetup(bpy.types.Operator, BaseOperator.BlendMethodOptions)
     type : EnumProperty(
         name = 'Type',
         items = (
-            ('BSDF_PRINCIPLED', 'Principled', ''),
+            ('BSDF_PRINCIPLED', 'Principled', 'CS2 default'),
             ('BSDF_DIFFUSE', 'Diffuse', ''),
             ('EMISSION', 'Emission', ''),
         ),
@@ -516,10 +516,11 @@ class YQuickYPaintNodeSetup(bpy.types.Operator, BaseOperator.BlendMethodOptions)
     )
 
     color : BoolProperty(name='Color', default=True)
-    alpha : BoolProperty(name='Alpha', default=False)
+    alpha : BoolProperty(name='Alpha', default=True)
     ao : BoolProperty(name='Ambient Occlusion', default=False)
     metallic : BoolProperty(name='Metallic', default=True)
     roughness : BoolProperty(name='Roughness', default=True)
+    coat : BoolProperty(name='Coat', default=True)
     normal : BoolProperty(name='Normal', default=True)
 
     use_linear_blending : BoolProperty(
@@ -584,8 +585,6 @@ class YQuickYPaintNodeSetup(bpy.types.Operator, BaseOperator.BlendMethodOptions)
         row = split_layout(self.layout, 0.35)
 
         col = row.column()
-        col.label(text='Tree Name:')
-        col.separator()
         col.label(text='Type:')
         if self.type != 'EMISSION':
             ccol = col.column(align=True)
@@ -607,10 +606,6 @@ class YQuickYPaintNodeSetup(bpy.types.Operator, BaseOperator.BlendMethodOptions)
                 col.label(text='Shadow Method:')
 
         col = row.column()
-        rrow = col.row(align=True)
-        rrow.prop(self, 'tree_name', text='')
-        rrow.prop(self, 'set_material_name_from_tree_name', text='', icon='MATERIAL_DATA')
-        col.separator()
         col.prop(self, 'type', text='')
         if self.type != 'EMISSION':
             ccol = col.column(align=True)
@@ -620,6 +615,7 @@ class YQuickYPaintNodeSetup(bpy.types.Operator, BaseOperator.BlendMethodOptions)
             ccol.prop(self, 'ao', toggle=True)
             if self.type == 'BSDF_PRINCIPLED':
                 ccol.prop(self, 'metallic', toggle=True)
+                ccol.prop(self, 'coat', toggle=True)
             ccol.prop(self, 'roughness', toggle=True)
             ccol.prop(self, 'normal', toggle=True)
         else:
@@ -777,6 +773,7 @@ class YQuickYPaintNodeSetup(bpy.types.Operator, BaseOperator.BlendMethodOptions)
         ch_ao = None
         ch_metallic = None
         ch_roughness = None
+        ch_coat = None
         ch_normal = None
 
         if self.color or self.type == 'EMISSION':
@@ -799,6 +796,9 @@ class YQuickYPaintNodeSetup(bpy.types.Operator, BaseOperator.BlendMethodOptions)
             if self.roughness:
                 ch_roughness = create_new_yp_channel(group_tree, 'Roughness', 'VALUE', non_color=True)
 
+            if self.type == 'BSDF_PRINCIPLED' and self.coat:
+                ch_coat = create_new_yp_channel(group_tree, 'Coat', 'VALUE', non_color=True)
+
             if self.normal:
                 ch_normal = create_new_yp_channel(group_tree, 'Normal', 'NORMAL')
 
@@ -814,6 +814,7 @@ class YQuickYPaintNodeSetup(bpy.types.Operator, BaseOperator.BlendMethodOptions)
         ch_alpha = group_tree.yp.channels.get('Alpha')
         ch_ao = group_tree.yp.channels.get('Ambient Occlusion')
         ch_metallic = group_tree.yp.channels.get('Metallic')
+        ch_coat = group_tree.yp.channels.get('Coat')
         ch_roughness = group_tree.yp.channels.get('Roughness')
         ch_normal = group_tree.yp.channels.get('Normal')
 
@@ -852,6 +853,17 @@ class YQuickYPaintNodeSetup(bpy.types.Operator, BaseOperator.BlendMethodOptions)
             #links.new(node.outputs[ch_metallic.io_index], inp)
             links.new(node.outputs[ch_metallic.name], inp)
 
+        if ch_coat:
+            inp = main_bsdf.inputs['Coat Weight']
+
+            # Check original link
+            for l in inp.links:
+                links.new(l.from_socket, node.inputs[ch_coat.name])
+
+            set_input_default_value(node, ch_coat, 0.0)
+            #links.new(node.outputs[ch_coat.io_index], inp)
+            links.new(node.outputs[ch_coat.name], inp)
+
         if ch_roughness:
             inp = main_bsdf.inputs['Roughness']
 
@@ -859,7 +871,7 @@ class YQuickYPaintNodeSetup(bpy.types.Operator, BaseOperator.BlendMethodOptions)
             for l in inp.links:
                 links.new(l.from_socket, node.inputs[ch_roughness.name])
 
-            set_input_default_value(node, ch_roughness, inp.default_value)
+            set_input_default_value(node, ch_roughness, 1.0)
             #links.new(node.outputs[ch_roughness.io_index], inp)
             links.new(node.outputs[ch_roughness.name], inp)
 
