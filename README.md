@@ -12,6 +12,8 @@
 > - Ucupaint Download/Repo : [https://github.com/ucupumar/ucupaint](https://github.com/ucupumar/ucupaint "https://github.com/ucupumar/ucupaint")
 > - Ucupaint Wiki/Documentation : [https://ucupumar.github.io/ucupaint-wiki/](https://ucupumar.github.io/ucupaint-wiki/ "https://ucupumar.github.io/ucupaint-wiki/")
 
+### Download [V2.4.4 beta](https://github.com/Deeheks/in2cs2/releases/download/2.4.4/in2cs2.zip "https://github.com/Deeheks/in2cs2/releases/download/2.4.4/in2cs2.zip")
+
 ### Who is in2cs2 for
 
 Cities Skylines II asset creators, from beginner to expert.
@@ -26,9 +28,8 @@ Cities Skylines II asset creators, from beginner to expert.
 - Create textures from scratch or simply improve existing ones
 - Target specific channels with layers and masks
 - Enhance your Normal maps
-   - Blend bump maps and precisely tweak results
+   - Blend bump or height maps and tweak combined Normal map
    - Bake vector displacement maps using advanced setup
-- 
 
 #### *Baking*  
 - Bake to any supported sizes (512, 1024, 2048 or 4096)
