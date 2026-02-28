@@ -518,10 +518,11 @@ class YQuickYPaintNodeSetup(bpy.types.Operator, BaseOperator.BlendMethodOptions)
     color : BoolProperty(name='Color', default=True)
     alpha : BoolProperty(name='Alpha', default=True)
     ao : BoolProperty(name='Ambient Occlusion', default=False)
+    normal : BoolProperty(name='Normal', default=True)
     metallic : BoolProperty(name='Metallic', default=True)
     roughness : BoolProperty(name='Roughness', default=True)
     coat : BoolProperty(name='Coat', default=True)
-    normal : BoolProperty(name='Normal', default=True)
+    colvar : BoolProperty(name='Color Variation Masks', default=False)
 
     use_linear_blending : BoolProperty(
         name = 'Use Linear Color Blending',
@@ -530,7 +531,7 @@ class YQuickYPaintNodeSetup(bpy.types.Operator, BaseOperator.BlendMethodOptions)
     )
 
     create_cs2_baketargets : BoolProperty(
-        name = 'Create Textures for CS2',
+        name = 'Create Texture Setup for CS2',
         description = '',
         default = True
     )
@@ -613,11 +614,12 @@ class YQuickYPaintNodeSetup(bpy.types.Operator, BaseOperator.BlendMethodOptions)
             if self.color:
                 ccol.prop(self, 'alpha', toggle=True)
             ccol.prop(self, 'ao', toggle=True)
+            ccol.prop(self, 'normal', toggle=True)
             if self.type == 'BSDF_PRINCIPLED':
                 ccol.prop(self, 'metallic', toggle=True)
                 ccol.prop(self, 'coat', toggle=True)
             ccol.prop(self, 'roughness', toggle=True)
-            ccol.prop(self, 'normal', toggle=True)
+            ccol.prop(self, 'colvar', toggle=True)
         else:
             ccol = col.column(align=True)
             ccol.prop(self, 'alpha', text='Enable Alpha')
@@ -771,10 +773,13 @@ class YQuickYPaintNodeSetup(bpy.types.Operator, BaseOperator.BlendMethodOptions)
         ch_color = None
         ch_alpha = None
         ch_ao = None
+        ch_normal = None
         ch_metallic = None
         ch_roughness = None
         ch_coat = None
-        ch_normal = None
+        ch_col1 = None
+        ch_col2 = None
+        ch_col3 = None
 
         if self.color or self.type == 'EMISSION':
             ch_color = create_new_yp_channel(group_tree, 'Color', 'RGB', non_color=False)
@@ -790,6 +795,9 @@ class YQuickYPaintNodeSetup(bpy.types.Operator, BaseOperator.BlendMethodOptions)
             if self.ao:
                 ch_ao = create_new_yp_channel(group_tree, 'Ambient Occlusion', 'RGB', non_color=True)
 
+            if self.normal:
+                ch_normal = create_new_yp_channel(group_tree, 'Normal', 'NORMAL')
+
             if self.type == 'BSDF_PRINCIPLED' and self.metallic:
                 ch_metallic = create_new_yp_channel(group_tree, 'Metallic', 'VALUE', non_color=True)
 
@@ -799,8 +807,13 @@ class YQuickYPaintNodeSetup(bpy.types.Operator, BaseOperator.BlendMethodOptions)
             if self.type == 'BSDF_PRINCIPLED' and self.coat:
                 ch_coat = create_new_yp_channel(group_tree, 'Coat', 'VALUE', non_color=True)
 
-            if self.normal:
-                ch_normal = create_new_yp_channel(group_tree, 'Normal', 'NORMAL')
+            if self.type == 'BSDF_PRINCIPLED' and self.colvar:
+                ch_col1 = create_new_yp_channel(group_tree, '1st colorVar', 'VALUE', non_color=True)
+                ch_col1.disable_unconnected_warning = True
+                ch_col2 = create_new_yp_channel(group_tree, '2nd colorVar', 'VALUE', non_color=True)
+                ch_col2.disable_unconnected_warning = True
+                ch_col3 = create_new_yp_channel(group_tree, '3rd colorVar', 'VALUE', non_color=True)
+                ch_col3.disable_unconnected_warning = True
 
         # Update io
         check_all_channel_ios(group_tree.yp, yp_node=node)
@@ -813,10 +826,13 @@ class YQuickYPaintNodeSetup(bpy.types.Operator, BaseOperator.BlendMethodOptions)
         ch_color = group_tree.yp.channels.get('Color')
         ch_alpha = group_tree.yp.channels.get('Alpha')
         ch_ao = group_tree.yp.channels.get('Ambient Occlusion')
-        ch_metallic = group_tree.yp.channels.get('Metallic')
-        ch_coat = group_tree.yp.channels.get('Coat')
-        ch_roughness = group_tree.yp.channels.get('Roughness')
         ch_normal = group_tree.yp.channels.get('Normal')
+        ch_metallic = group_tree.yp.channels.get('Metallic')
+        ch_roughness = group_tree.yp.channels.get('Roughness')
+        ch_coat = group_tree.yp.channels.get('Coat')
+        ch_col1 = group_tree.yp.channels.get('1st colorVar')
+        ch_col2 = group_tree.yp.channels.get('2nd colorVar')
+        ch_col3 = group_tree.yp.channels.get('3rd colorVar')
 
         if ch_color:
             inp = main_bsdf.inputs[0]
@@ -853,6 +869,17 @@ class YQuickYPaintNodeSetup(bpy.types.Operator, BaseOperator.BlendMethodOptions)
             #links.new(node.outputs[ch_metallic.io_index], inp)
             links.new(node.outputs[ch_metallic.name], inp)
 
+        if ch_roughness:
+            inp = main_bsdf.inputs['Roughness']
+
+            # Check original link
+            for l in inp.links:
+                links.new(l.from_socket, node.inputs[ch_roughness.name])
+
+            set_input_default_value(node, ch_roughness, 1.0)
+            #links.new(node.outputs[ch_roughness.io_index], inp)
+            links.new(node.outputs[ch_roughness.name], inp)
+
         if ch_coat:
             inp = main_bsdf.inputs['Coat Weight']
 
@@ -864,16 +891,6 @@ class YQuickYPaintNodeSetup(bpy.types.Operator, BaseOperator.BlendMethodOptions)
             #links.new(node.outputs[ch_coat.io_index], inp)
             links.new(node.outputs[ch_coat.name], inp)
 
-        if ch_roughness:
-            inp = main_bsdf.inputs['Roughness']
-
-            # Check original link
-            for l in inp.links:
-                links.new(l.from_socket, node.inputs[ch_roughness.name])
-
-            set_input_default_value(node, ch_roughness, 1.0)
-            #links.new(node.outputs[ch_roughness.io_index], inp)
-            links.new(node.outputs[ch_roughness.name], inp)
 
         if ch_normal:
             inp = main_bsdf.inputs['Normal']
@@ -2092,7 +2109,7 @@ class YSwitchToMaterialView(bpy.types.Operator):
     bl_idname = "wm.y_switch_to_material_view"
     bl_label = "Switch to Material View"
     bl_description = "Switch to use material view to see all the layer effects"
-    #bl_options = {'REGISTER', 'UNDO'}
+    bl_options = {'REGISTER', 'INTERNAL'}
 
     @classmethod
     def poll(cls, context):

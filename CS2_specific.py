@@ -1,6 +1,5 @@
 import bpy
 from bpy.props import *
-
 from .common import *
 
 
@@ -55,6 +54,7 @@ class YMatchNames(bpy.types.Operator):
 
 # https://cs2.paradoxwikis.com/Asset_Pipeline:_Buildings#Sub_Meshes
         objname = obj.name \
+            .replace('.', '-') \
             .replace("_", "-") \
             .replace("-LOD0", "") \
             .replace("-Gls", "_Gls") \
@@ -78,6 +78,32 @@ class YMatchNames(bpy.types.Operator):
         self.report({'INFO'}, f"Prepared: {objname}")
         return {'FINISHED'}
 
+class YPrepareExportMesh(bpy.types.Operator):
+    bl_idname = "wm.y_prepare_export_mesh"
+    bl_label = "Prepare for FBX export"
+    bl_description = "Select destination folder."
+    bl_options = {'REGISTER', 'INTERNAL'}
+
+    def execute(self, context):
+        obj = context.object
+        uv_layer = get_uv_layers(obj)
+
+        if not uv_layer or len(uv_layer) == 0:
+            self.report({'ERROR'}, "Mesh has no UV map.")
+            return {'CANCELLED'}
+
+        # Force select
+        bpy.context.view_layer.objects.active = obj
+        obj.hide_select = obj.hide_viewport = obj.hide_render = False
+        obj.hide_set(False)
+        obj.select_set(True)
+
+        if has_pending_transforms(obj):
+            self.report({'INFO'}, "Active object has pending visual transforms. Applying rotation and scale transforms.")
+            bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
+
+        bpy.ops.wm.y_export_mesh()
+        return {'FINISHED'}
 
 class YExportMesh(bpy.types.Operator):
     bl_idname = "wm.y_export_mesh"
@@ -97,17 +123,9 @@ class YExportMesh(bpy.types.Operator):
 
     def invoke(self, context, event):
         obj = context.object
-        # Force select
-        bpy.context.view_layer.objects.active = obj
-        obj.hide_select = obj.hide_viewport = obj.hide_render = False
-        obj.hide_set(False)
-        obj.select_set(True)
-        if has_pending_transforms(obj):
-            self.report({'INFO'}, "Active object has pending visual transforms. Applying rotation and scale transforms.")
-            bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
 
-        current_obj_name = context.object.name.replace('.', '-')
-        suggested_name = current_obj_name + '.fbx'
+        #current_obj_name = context.object.name.replace('.', '-')
+        suggested_name = obj.name + '.fbx'
 
         if bpy.data.is_saved:
             if self.previous_export_filepath:
@@ -169,8 +187,10 @@ class YExportMesh(bpy.types.Operator):
 
 def register():
     bpy.utils.register_class(YMatchNames)
+    bpy.utils.register_class(YPrepareExportMesh)
     bpy.utils.register_class(YExportMesh)
 
 def unregister():
     bpy.utils.unregister_class(YMatchNames)
+    bpy.utils.unregister_class(YPrepareExportMesh)
     bpy.utils.unregister_class(YExportMesh)

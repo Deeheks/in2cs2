@@ -4327,7 +4327,7 @@ def main_draw(self, context):
             rrow.operator('wm.y_match_names', text='Fix naming', icon=icon)
         else:
             rrow = row.row(align=True)
-            rrow.operator('wm.y_export_mesh', text='FBX Export as ...', icon='EXPORT')
+            rrow.operator('wm.y_prepare_export_mesh', text='FBX Export as ...', icon='EXPORT')
 
     if not is_bl_newer_than(2, 80):
         row.menu("NODE_MT_ypaint_about_addon_menu", text='', icon='QUESTION')

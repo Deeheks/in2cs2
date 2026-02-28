@@ -173,7 +173,7 @@ class YNewBakeTarget(bpy.types.Operator):
         col = row.column(align=False)
         col.prop(self, 'name', text='')
         col.prop(self, 'preset', text='')
-        col.prop(self, 'use_float')
+        #col.prop(self, 'use_float')
 
     def execute(self, context):
         wm = context.window_manager
@@ -218,7 +218,7 @@ class YNewBakeTarget(bpy.types.Operator):
             for ch in yp.channels:
                 if ch.name in {'Metallic', 'Metalness', 'M'}:
                     bt.r.channel_name = ch.name
-                elif ch.name in {'Coat', 'IoR', 'C'}:
+                elif ch.name in {'Coat', 'IoR', 'Specular'}:
                     bt.g.channel_name = ch.name
                 elif ch.name in {'Roughness', 'R'}:
                     bt.a.channel_name = ch.name
@@ -226,6 +226,15 @@ class YNewBakeTarget(bpy.types.Operator):
 
         elif self.preset == 'ControlMask':
             bt.a.default_value = 0.0
+            for ch in yp.channels:
+                if ch.name in {'1st colorVar', 'Var1', 'C1'}:
+                    bt.r.channel_name = ch.name
+                elif ch.name in {'2nd colorVar', 'Var2', 'C2'}:
+                    bt.g.channel_name = ch.name
+                elif ch.name in {'3rd colorVar', 'Var3', 'C3'}:
+                    bt.b.channel_name = ch.name
+                elif ch.name in {'SnowRemove', 'RemoveSnow', 'Snow'}:
+                    bt.a.channel_name = ch.name
 
         elif self.preset == 'Emissive':
             bt.a.default_value = 0.0

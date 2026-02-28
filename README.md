@@ -14,15 +14,32 @@
 
 ### Who is in2cs2 for
 
-Cities Skylines II asset creators from beginner to expert.
+Cities Skylines II asset creators, from beginner to expert.
 
-- Improve your creation workflow
+- Improve your asset creation workflow
 - Bake with confidence thanks to the ucupaint underlying system
 - Save time on redundant operations and verifications
 
-### CitiesSkylines2 specific features
+### Features
 
-*Modelling*  
+#### *Texturing*  
+- Create textures from scratch or simply improve existing ones
+- Target specific channels with layers and masks
+- Enhance your Normal maps
+   - Blend bump maps and precisely tweak results
+   - Bake vector displacement maps using advanced setup
+- 
+
+#### *Baking*  
+- Bake to any supported sizes (512, 1024, 2048 or 4096)
+   - High to low poly baking using 'Other Objects Channels'
+- CS2-compliant texture maps
+   - auto-binding to Principled BSDF shader
+- One-click **Save CS2 textures**,
+   - no need to rename or convert files
+   - import-ready, each and every time!
+  
+#### *Exporting*  
 - **Scene units and scale** validation (avoid missed exports)
    - warns user if scene unit is not Metric
    - warns user if unit scale is not 1:1
@@ -35,11 +52,3 @@ Cities Skylines II asset creators from beginner to expert.
    - supports non-zeroed location (applies only Rotation and Scale)
       - allows side-by-side asset placement in the scene
       - prevents missed exports with bad scaling or Z-up imported meshes
-
-*Texturing*  
-- Bakes to any supported sizes (512, 1024, 2048 or 4096)  
-- CS2-compliant texture maps
-   - auto-binding to Principled BSDF shader
-- One-click **Save CS2 textures**,
-   - no need to rename or convert files
-   - import-ready, each and every time!
