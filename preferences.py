@@ -55,7 +55,7 @@ class YPaintPreferences(AddonPreferences):
     use_image_preview : BoolProperty(
         name = 'Use Image Preview/Thumbnail',
         description = 'Use image preview or thumbnail on the layers list',
-        default = False
+        default = True
     )
 
     skip_property_popups : BoolProperty(
@@ -107,13 +107,13 @@ class YPaintPreferences(AddonPreferences):
     enable_uniform_uv_scale_by_default : BoolProperty(
         name = 'Enable Uniform UV Scale by default',
         description = "Enable uniform UV scale by default in Layer and Mask UVs. This will make all scale axes have the same value",
-        default = False
+        default = True
     )
 
     enable_auto_udim_detection : BoolProperty(
         name = 'Enable Auto UDIM Detection',
         description = "Enable automatic UDIM detection. This will automatically check 'Use UDIM Tiles' checkboxes when UDIM is detected",
-        default = True
+        default = False
     )
 
     enable_material_view_warning : BoolProperty(
@@ -154,10 +154,17 @@ class YPaintPreferences(AddonPreferences):
     hide_update_notification : BoolProperty(
         name = 'Hide Update Notification',
         description = 'Always hide update notification',
-        default = False
+        default = True
+    )
+
+    cs2_ignore_warnings: BoolProperty(
+        name='Ignore Material name warnings',
+        description='Only checks mesh name matching object',
+        default=True
     )
 
     def draw(self, context):
+        self.layout.prop(self, 'cs2_ignore_warnings')
         if is_bl_newer_than(2, 80):
             self.layout.prop(self, 'default_bake_device')
             self.layout.prop(self, 'icons')

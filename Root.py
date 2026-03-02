@@ -531,8 +531,8 @@ class YQuickYPaintNodeSetup(bpy.types.Operator, BaseOperator.BlendMethodOptions)
     )
 
     create_cs2_baketargets : BoolProperty(
-        name = 'Create Texture Setup for CS2',
-        description = '',
+        name = 'Create CS2 Texture Setup',
+        description = 'CS2 render pipeline texture maps will get automatically setup',
         default = True
     )
 
@@ -595,6 +595,8 @@ class YQuickYPaintNodeSetup(bpy.types.Operator, BaseOperator.BlendMethodOptions)
             ccol.label(text='')
             if self.type == 'BSDF_PRINCIPLED':
                 ccol.label(text='')
+                ccol.label(text='')
+                ccol.label(text='')
             ccol.label(text='')
             ccol.label(text='')
 
@@ -619,7 +621,8 @@ class YQuickYPaintNodeSetup(bpy.types.Operator, BaseOperator.BlendMethodOptions)
                 ccol.prop(self, 'metallic', toggle=True)
                 ccol.prop(self, 'coat', toggle=True)
             ccol.prop(self, 'roughness', toggle=True)
-            ccol.prop(self, 'colvar', toggle=True)
+            if self.type == 'BSDF_PRINCIPLED':
+                ccol.prop(self, 'colvar', toggle=True)
         else:
             ccol = col.column(align=True)
             ccol.prop(self, 'alpha', text='Enable Alpha')
@@ -876,12 +879,15 @@ class YQuickYPaintNodeSetup(bpy.types.Operator, BaseOperator.BlendMethodOptions)
             for l in inp.links:
                 links.new(l.from_socket, node.inputs[ch_roughness.name])
 
-            set_input_default_value(node, ch_roughness, 1.0)
+            set_input_default_value(node, ch_roughness, 0.99)
             #links.new(node.outputs[ch_roughness.io_index], inp)
             links.new(node.outputs[ch_roughness.name], inp)
 
         if ch_coat:
-            inp = main_bsdf.inputs['Coat Weight']
+            if not is_bl_newer_than(4, 0):
+                inp = main_bsdf.inputs['Clearcoat']
+            else:
+                inp = main_bsdf.inputs['Coat Weight']
 
             # Check original link
             for l in inp.links:

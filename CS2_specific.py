@@ -9,24 +9,26 @@ def is_scene_unit_metric(scene):
     if is_metric:
         return True
     else:
-        print(f"Unit mismatch: System={units.system}, Scale={units.scale_length}, Length={units.length_unit}")
+        self.report({'WARNING'}, f"Scene Unit mismatch: System={units.system}")
         return False
 
-def is_scene_unit_one_meter(scene):
+def is_scene_units_ok(scene, obj):
     units = scene.unit_settings
     is_scale_one = round(units.scale_length, 4) == 1.0
-    if is_scale_one:
+    # 0.01 scaling accounts for rigged meshes hack prior to official support
+    is_scale_cms = round(units.scale_length, 4) == 0.01
+    if is_scale_one or (is_rigged(obj) and is_scale_cms):
         return True
     else:
-        print(f"Unit mismatch: System={units.system}, Scale={units.scale_length}, Length={units.length_unit}")
+        self.report({'WARNING'}, f"Scene Unit mismatch: Scale={units.scale_length}, Length={units.length_unit}")
         return False
-
 
 def has_pending_transforms(obj):
     """Returns True if transforms are not applied (Location 0, Rotation 0, Scale 1)."""
-    # Precision threshold for floating point math
-    if obj.location.length > 0.0001:
-        return True
+
+    # Ignore location
+    #if obj.location.length > 0.0001:
+    #    return True
 
         # Check Rotation (should be Euler 0,0,0 or Identity Quaternion)
     if obj.rotation_euler.to_matrix().is_identity is False:
@@ -40,6 +42,35 @@ def has_pending_transforms(obj):
 
     return False
 
+def make_dir_if_not(dir_name):
+    if not os.path.isdir(dir_name):
+        os.makedirs(dir_name)
+
+def is_lod1(obj):
+    # TODO: ensure All caps LOD in name
+    return 'LOD1' in obj.name.upper()
+
+def is_lod2(obj):
+    # TODO: ensure All caps LOD in name
+    return 'LOD2' in obj.name.upper()
+
+def submesh_type(obj):
+    obj_name = obj.name.replace("_LOD1", "").replace("_LOD2", "")
+    sub_mesh = obj_name.split('_')[1]
+    # TODO: ensure Capitalized submesh in name, also check against supported submesh types
+    return sub_mesh.title()
+
+def main_mesh_obj(obj):
+    main_mesh = obj.name.split('_')[0]
+    return main_mesh
+
+def is_rigged(obj):
+    isrigged = False
+    for modifier in obj.modifiers:
+        if modifier.type == 'ARMATURE' and modifier.object is not None:
+            isrigged = True
+            break
+    return isrigged
 
 class YMatchNames(bpy.types.Operator):
     bl_idname = "wm.y_match_names"
@@ -52,9 +83,10 @@ class YMatchNames(bpy.types.Operator):
             bpy.ops.object.mode_set(mode='OBJECT')
         obj = context.object
 
-# https://cs2.paradoxwikis.com/Asset_Pipeline:_Buildings#Sub_Meshes
+        # Object Name sanitize
+        # https://cs2.paradoxwikis.com/Asset_Pipeline:_Buildings#Sub_Meshes
         objname = obj.name \
-            .replace('.', '-') \
+            .replace(".", "-") \
             .replace("_", "-") \
             .replace("-LOD0", "") \
             .replace("-Gls", "_Gls") \
@@ -64,16 +96,25 @@ class YMatchNames(bpy.types.Operator):
             .replace("-Wat", "_Wat") \
             .replace("-LOD", "_LOD")
 
-        # Rename Mesh Data to Object Name
+        # Mesh Data Name checks
         if obj.data:
             obj.data.name = objname
             obj.name = objname
 
-        # Rename Materials to Object Name
-        # Note: If you have multiple materials, Blender will auto-suffix them (e.g., Name.001)
+        # Materials and Name checks
+        if len(obj.material_slots) > 0:
+            self.report({'WARNING'}, "Mesh has more than one assigned material.")
+
         for slot in obj.material_slots:
             if slot.material:
-                slot.material.name = objname
+                if get_user_preferences().cs2_ignore_warnings and slot.material.name != objname:
+                    self.report({'WARNING'}, "Material mismatch object's name. Ignored as per user preference.")
+                elif slot.material.name != objname:
+                    slot.material.name = objname
+                    self.report({'INFO'}, "Material renamed to match object's name.")
+            else:
+                self.report({'WARNING'}, "Mesh has no assigned material.")
+                # todo: add dispositions if required for submeshes
 
         self.report({'INFO'}, f"Prepared: {objname}")
         return {'FINISHED'}
@@ -99,10 +140,10 @@ class YPrepareExportMesh(bpy.types.Operator):
         obj.select_set(True)
 
         if has_pending_transforms(obj):
-            self.report({'INFO'}, "Active object has pending visual transforms. Applying rotation and scale transforms.")
             bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
+            self.report({'INFO'}, "Active object has pending visual transforms. Applying rotation and scale transforms.")
 
-        bpy.ops.wm.y_export_mesh()
+        bpy.ops.wm.y_export_mesh('INVOKE_DEFAULT')
         return {'FINISHED'}
 
 class YExportMesh(bpy.types.Operator):
@@ -124,19 +165,23 @@ class YExportMesh(bpy.types.Operator):
     def invoke(self, context, event):
         obj = context.object
 
-        #current_obj_name = context.object.name.replace('.', '-')
-        suggested_name = obj.name + '.fbx'
+        obj_name = obj.name.replace(".", "-")
+        main_mesh = obj_name.split('_')[0]
+        file_name = obj_name + '.fbx'
 
         if bpy.data.is_saved:
             if self.previous_export_filepath:
-                self.filepath = os.path.join(os.path.dirname(self.previous_export_filepath), suggested_name)
+                self.filepath = os.path.join(os.path.dirname(self.previous_export_filepath), file_name)
             else:
-                self.filepath = os.path.join(os.path.dirname(bpy.data.filepath), suggested_name)
+                suggested_dir = os.path.join(os.path.dirname(bpy.data.filepath), main_mesh)
+                make_dir_if_not(suggested_dir)
+                self.filepath = os.path.join(suggested_dir, file_name)
         else:
             if self.previous_export_filepath:
-                self.filepath = os.path.join(os.path.dirname(self.previous_export_filepath), suggested_name)
+                self.filepath = os.path.join(os.path.dirname(self.previous_export_filepath), file_name)
             else:
-                self.filepath = os.path.join(os.path.expanduser("~"), suggested_name)
+                suggested_dir = os.path.join(os.path.expanduser("~"), main_mesh)
+                self.filepath = os.path.join(suggested_dir, file_name)
 
         context.window_manager.fileselect_add(self)
         return {'RUNNING_MODAL'}

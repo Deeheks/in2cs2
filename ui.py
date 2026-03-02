@@ -4308,6 +4308,7 @@ def main_draw(self, context):
 
     layout = self.layout
     row = layout.row(align=True)
+    row.alignment = 'RIGHT'
     # CS2 asset pipeline specific checks
     if mat:
         if mat.name != obj.data.name or obj.data.name != obj.name:
@@ -4317,7 +4318,7 @@ def main_draw(self, context):
                 row = layout.row(align=True)
                 rrow = row.row(align=True)
                 rrow.label(text="Mesh Name mismatch", icon='ERROR')
-            if mat.name != obj.name:
+            if not get_user_preferences().cs2_ignore_warnings and mat.name != obj.name:
                 icon = 'MATERIAL_DATA'
                 row = layout.row(align=True)
                 rrow = row.row(align=True)
@@ -4341,7 +4342,7 @@ def main_draw(self, context):
         row = layout.row(align=True)
         rrow = row.row(align=True)
         rrow.label(text="Scene units not set to Metric", icon='ERROR')
-    elif not is_scene_unit_one_meter(context.scene):
+    elif not is_scene_units_ok(context.scene, obj):
         row = layout.row(align=True)
         rrow = row.row(align=True)
         rrow.label(text="Scene units should be 1 meter", icon='ERROR')
@@ -4361,11 +4362,33 @@ def main_draw(self, context):
         rrow.prop(ypui, 'show_object', emboss=False, text='', icon=icon)
         rrow.label(text=text_object)
 
-    rrow = row.row(align=True)
-    rrow.alignment = 'RIGHT'
-
     if ypui.show_object:
         box = layout.box()
+        row = box.row(align=True)
+
+        if is_rigged(obj):
+            row.label(text='Rigged mesh', icon='ARMATURE_DATA')
+
+        if '_' in obj.name:
+            # Display Main Name
+            main_name = obj.name.split('_')[0]
+            rrow = box.row(align=True)
+            rrow.label(text=f'Main: {main_name}')
+            rrow = box.row(align=True)
+            # TODO: check if main mesh exists
+
+            # Check LOD status
+            if is_lod1(obj):
+                rrow.label(text='Type: LOD1')
+            elif is_lod2(obj):
+                rrow.label(text='Type: LOD2')
+
+            # Check Submesh status
+            s_type = submesh_type(obj)
+            if s_type:
+                rrow.label(text=f'Submesh: {s_type}')
+
+            box.separator()
         col = box.column()
         row = split_layout(col, 0.6)
         row.label(text='Object Index:')

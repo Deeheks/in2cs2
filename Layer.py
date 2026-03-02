@@ -2285,6 +2285,7 @@ class BaseMultipleImagesLayer(BaseOperator.OpenImage):
             'ambient occlusion': ['ao'],
             'metallic': ['metalness', 'm'],
             'roughness': ['glossiness', 'smoothness', 'r'],
+            'coat weight': ['coat', 'gloss', 'c'],
             'normal': ['displacement', 'height', 'bump', 'n'],  # Prioritize displacement/bump before actual normal map
         }
 
