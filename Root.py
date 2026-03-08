@@ -4526,6 +4526,14 @@ class YPaintObjectUVHash(bpy.types.PropertyGroup):
     uv_hash : StringProperty(default='')
 
 class YPaintObjectProps(bpy.types.PropertyGroup):
+    asset_needs_repair : IntProperty(default=-1)
+    asset_error_msg : StringProperty(default='')
+    asset_lod1shares0 : BoolProperty(default=False)
+    asset_lod2shares0 : BoolProperty(default=False)
+    asset_lod2shares1 : BoolProperty(default=False)
+    asset_uses_shared : BoolProperty(default=False)
+    asset_uses_shared_from : StringProperty(default='')
+
     ori_subsurf_render_levels : IntProperty(default=1)
     ori_subsurf_levels : IntProperty(default=1)
     ori_multires_render_levels : IntProperty(default=1)

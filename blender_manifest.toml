@@ -7,7 +7,7 @@ tagline = "Layer based painting for Eevee and Cycles"
 maintainer = "Deeheks"
 type = "add-on"
 
-website = "https://ucupumar.github.io/ucupaint-wiki/"
+website = "https://github.com/Deeheks/in2cs2"
 
 tags = ["Node", "Material", "Paint", "Bake"]
 

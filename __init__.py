@@ -7,7 +7,7 @@ bl_info = {
     "warning": "",
     "description": "Special node to manage painting layers for Cycles and Eevee materials",
     "wiki_url": "https://ucupumar.github.io/ucupaint-wiki/",
-    "doc_url": "https://ucupumar.github.io/ucupaint-wiki/",
+    "doc_url": "https://github.com/Deeheks/in2cs2",
     "category": "Node",
 }
 
@@ -33,6 +33,7 @@ if "bpy" in locals():
     importlib.reload(vcol_editor)
     importlib.reload(transition)
     importlib.reload(BakeTarget)
+    importlib.reload(CS2_specific)
     importlib.reload(BakeInfo)
     importlib.reload(UDIM)
     importlib.reload(ImageAtlas)
@@ -119,6 +120,7 @@ def unregister():
     Test.unregister()
 
     print('INFO: ' + common.get_addon_title() + ' ' + common.get_current_version_str() + ' is unregistered!')
+
 
 if __name__ == "__main__":
     register()

@@ -1034,7 +1034,6 @@ def draw_bake_targets_ui(context, layout, node):
 
         row.prop(btui, 'expand_content', text='', emboss=False, icon=icon)
 
-        #row.prop(btui, 'expand_content', text='', emboss=False, icon_value=icon_value)
         if image: 
             bt_label = image.name
             if image.is_float: bt_label += ' (Float)'
@@ -4284,10 +4283,13 @@ def main_draw(self, context):
     scene = context.scene
     obj = context.object
     mat = get_active_material(obj)
+    node = get_active_ypaint_node(obj)
     mui = get_material_ui(mat)
     ypup = get_user_preferences()
     #slot = context.material_slot
     #space = context.space_data
+    obj_name = obj.name
+    ypo = obj.yp
 
     # Timer
     if wm.yptimer.time != '':
@@ -4304,54 +4306,36 @@ def main_draw(self, context):
     # Update ui props first
     update_yp_ui()
 
-    node = get_active_ypaint_node()
-
     layout = self.layout
     row = layout.row(align=True)
     row.alignment = 'RIGHT'
-    # CS2 asset pipeline specific checks
-    if mat:
-        if mat.name != obj.data.name or obj.data.name != obj.name:
-            icon = 'ERROR'
-            if obj.data.name != obj.name:
-                icon = 'MESH_DATA'
-                row = layout.row(align=True)
-                rrow = row.row(align=True)
-                rrow.label(text="Mesh Name mismatch", icon='ERROR')
-            if not get_user_preferences().cs2_ignore_warnings and mat.name != obj.name:
-                icon = 'MATERIAL_DATA'
-                row = layout.row(align=True)
-                rrow = row.row(align=True)
-                rrow.label(text="Material Name mismatch", icon='ERROR')
-            row = layout.row(align=True)
-            rrow = row.row(align=True)
-            rrow.operator('wm.y_match_names', text='Fix naming', icon=icon)
-        else:
-            rrow = row.row(align=True)
-            rrow.operator('wm.y_prepare_export_mesh', text='FBX Export as ...', icon='EXPORT')
+    row = layout.row(align=True)
+    rrow = row.row(align=True)
+    if ypo.asset_needs_repair == 0:
+        rrow.operator('wm.y_prepare_export_mesh', text='FBX Export as ...', icon='EXPORT')
+    elif ypo.asset_needs_repair > 0:
+        rrow.operator('wm.y_repair_object', text='Repair object', icon='EXPORT')
+    else:
+        rrow.operator('wm.y_validate_object', text='Validate object', icon='EXPORT')
 
     if not is_bl_newer_than(2, 80):
-        row.menu("NODE_MT_ypaint_about_addon_menu", text='', icon='QUESTION')
-        row.menu("NODE_MT_ypaint_about_menu", text='', icon='INFO')
+        row.menu("NODE_MT_ypaint_about_addon_menu", text='', icon='INFO')
+        row.menu("NODE_MT_ypaint_about_menu", text='', icon='HELP')
     else:
-        row.popover("NODE_PT_ypaint_about_addon_popover", text='', icon='HELP')
-        row.popover("NODE_PT_ypaint_about_popover", text='', icon='COMMUNITY')
+        row.popover("NODE_PT_ypaint_about_addon_popover", text='', icon='INFO')
+        row.popover("NODE_PT_ypaint_about_popover", text='', icon='HELP')
         row.popover('VIEW3D_PT_ypaint_support_ui', text='', icon='FUND')
 
-    if not is_scene_unit_metric(context.scene):
+    if ypo.asset_needs_repair > 0:
         row = layout.row(align=True)
         rrow = row.row(align=True)
-        rrow.label(text="Scene units not set to Metric", icon='ERROR')
-    elif not is_scene_units_ok(context.scene, obj):
-        row = layout.row(align=True)
-        rrow = row.row(align=True)
-        rrow.label(text="Scene units should be 1 meter", icon='ERROR')
+        rrow.label(text=ypo.asset_error_msg, icon='ERROR')
 
     icon = 'TRIA_DOWN' if ypui.show_object else 'TRIA_RIGHT'
     row = layout.row(align=True)
     rrow = row.row(align=True)
     text_object = pgettext_iface('Object: ')
-    if obj: text_object += obj.name
+    if obj: text_object += obj_name
     else: text_object += '-'
 
     if is_bl_newer_than(2, 80):
@@ -4364,31 +4348,31 @@ def main_draw(self, context):
 
     if ypui.show_object:
         box = layout.box()
-        row = box.row(align=True)
-
-        if is_rigged(obj):
-            row.label(text='Rigged mesh', icon='ARMATURE_DATA')
-
-        if '_' in obj.name:
-            # Display Main Name
-            main_name = obj.name.split('_')[0]
+        if "_LOD1" in obj_name.upper():
             rrow = box.row(align=True)
-            rrow.label(text=f'Main: {main_name}')
+            rrow.prop(ypo, 'asset_lod1shares0', text='LOD1 shares Main material')
+        elif "_LOD2" in obj_name.upper():
+            if ypo.asset_lod2shares0:
+                ypo.asset_lod2shares1 = False
+            elif ypo.asset_lod2shares1:
+                ypo.asset_lod2shares0 = False
             rrow = box.row(align=True)
-            # TODO: check if main mesh exists
-
-            # Check LOD status
-            if is_lod1(obj):
-                rrow.label(text='Type: LOD1')
-            elif is_lod2(obj):
-                rrow.label(text='Type: LOD2')
-
-            # Check Submesh status
-            s_type = submesh_type(obj)
-            if s_type:
-                rrow.label(text=f'Submesh: {s_type}')
-
-            box.separator()
+            rrow.prop(ypo, 'asset_lod2shares0', text='LOD2 shares Main material')
+            rrow = box.row(align=True)
+            rrow.prop(ypo, 'asset_lod2shares1', text='LOD2 shares LOD1 material')
+            rrow = box.row(align=True)
+            rrow.label(text='(Both not recommended)')
+        else:
+            rrow = box.row(align=True)
+            rrow.prop(ypo, 'asset_uses_shared', text='Use shared material')
+            if ypo.asset_uses_shared:
+                rrow = box.row(align=True)
+                rrow.prop(ypo, 'asset_uses_shared_from', text='Source')
+            if node:
+                ypn = node.node_tree.yp
+                if ypn and ypn.use_baked:
+                    rrow = box.row(align=True)
+                    rrow.operator('wm.y_settings_json', text="Create Settings.json", icon='FILE_TEXT')
         col = box.column()
         row = split_layout(col, 0.6)
         row.label(text='Object Index:')
@@ -4404,17 +4388,17 @@ def main_draw(self, context):
     icon = 'TRIA_DOWN' if ypui.show_materials else 'TRIA_RIGHT'
     rrow = row.row(align=True)
     text_material = pgettext_iface('Material: ')
-    if node and len(obj.material_slots) > 0:
-        if mat: text_material += mat.name
-        else: text_material += '-'
+    #if node and len(obj.material_slots) > 0:
+    if mat: text_material += mat.name
+    else: text_material += '-'
 
-        if is_bl_newer_than(2, 80):
-            rrow.alignment = 'LEFT'
-            rrow.scale_x = 0.95
-            rrow.prop(ypui, 'show_materials', emboss=False, text=text_material, icon=icon)
-        else:
-            rrow.prop(ypui, 'show_materials', emboss=False, text='', icon=icon)
-            rrow.label(text=text_material)
+    if is_bl_newer_than(2, 80):
+        rrow.alignment = 'LEFT'
+        rrow.scale_x = 0.95
+        rrow.prop(ypui, 'show_materials', emboss=False, text=text_material, icon=icon)
+    else:
+        rrow.prop(ypui, 'show_materials', emboss=False, text='', icon=icon)
+        rrow.label(text=text_material)
 
     # HACK: Load all icons earlier so no missing icons possible (Only for Blender 3.2+)
     if is_bl_newer_than(3, 2) and not wm.ypprops.all_icons_loaded:
@@ -4470,7 +4454,7 @@ def main_draw(self, context):
             row.prop(mui, 'expand_content', emboss=False, text='', icon=icon)
         row.template_ID(obj, "active_material", new="material.new")
 
-        if mui.expand_content:
+        if mat and mui.expand_content:
             row = box.row(align=True)
             row.label(text='', icon='BLANK1')
             col = row.column(align=False)
@@ -4529,16 +4513,7 @@ def main_draw(self, context):
         col = layout.column()
         col.alert = True
         col.label(text='This node uses newer version!', icon='ERROR')
-        if 'addon_updater_ops' not in dir():
-            # Extension platform releases link
-            col.operator('wm.url_open', text='Update '+get_addon_title(), icon='ERROR').url = 'https://extensions.blender.org/add-ons/ucupaint/'
-        else: 
-            if is_online():
-                # Blender with online access already has the update button
-                col.label(text='Please update the addon!', icon='BLANK1')
-            else:
-                # Github releases link
-                col.operator('wm.url_open', text='Update '+get_addon_title(), icon='ERROR').url = 'https://github.com/ucupumar/ucupaint/releases'
+        col.operator('wm.url_open', text='Update '+get_addon_title(), icon='ERROR').url = 'https://github.com/Deeheks/in2cs2/releases'
 
     # Message will appear when legacy alpha toggle is enabled by accident
     legacy_alpha_found = False
@@ -4570,7 +4545,7 @@ def main_draw(self, context):
     row.label(text=node.node_tree.name)
     #row.prop(node.node_tree, 'name', text='')
 
-    icon = 'PREFERENCES' if is_bl_newer_than(2, 80) else 'SCRIPTWIN'
+    icon = 'PREFERENCES' if is_bl_newer_than(2, 80) else 'CLEAN_ICON'
     row.menu("NODE_MT_ypaint_main_menu", text='', icon=icon)
 
     # Check for baked node
@@ -5880,7 +5855,7 @@ def draw_ypaint_about_addon(self, context):
 
     col.label(text='Links:')
     col.operator('wm.url_open', text=get_addon_title() + ' GitHub', icon='SCRIPT').url = 'https://github.com/deeheks/in2cs2'
-    col.operator('wm.url_open', text='CS2 Modding Wiki', icon='TEXT').url = 'https://cs2.paradoxwikis.com/Asset_Creation_Guide'
+    col.operator('wm.url_open', text='Asset Creation Wiki', icon='TEXT').url = 'https://cs2.paradoxwikis.com/Asset_Creation_Guide'
     icon = 'COMMUNITY' if is_bl_newer_than(2, 80) else 'SEQ_SEQUENCER'
     col.operator('wm.url_open', text='CSModding Discord', icon=icon).url = 'https://discord.gg/DgH7rDKZ6r'
 
@@ -8211,6 +8186,7 @@ class YPaintUI(bpy.types.PropertyGroup):
     #mask_ui : PointerProperty(type=YMaskUI)
 
     # Group channel related UI
+    # noinspection PyTypeHints
     channel_idx : IntProperty(default=0)
     channel_ui : PointerProperty(type=YChannelUI)
     channels : CollectionProperty(type=YChannelUI)

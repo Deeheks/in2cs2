@@ -360,7 +360,7 @@ bake_type_items = (
 
     ('OTHER_OBJECT_NORMAL', 'Other Objects Normal', 'Other object\'s normal'),
     ('OTHER_OBJECT_EMISSION', 'Other Objects Color', 'Other object\'s color'),
-    ('OTHER_OBJECT_CHANNELS', 'Other Objects Channels', 'Other object\'s Ucupaint channels'),
+    ('OTHER_OBJECT_CHANNELS', 'Other Objects Channels', 'Other object\'s channels'),
 
     ('SELECTED_VERTICES', 'Selected Vertices/Edges/Faces', ''),
 
@@ -1912,7 +1912,7 @@ def create_info_nodes(tree):
 
     info = nodes.new('NodeFrame')
 
-    addon_link = 'github.com/ucupumar/ucupaint'
+    addon_link = 'github.com/Deeheks/in2cs2'
 
     if tree_type == 'ROOT':
         info.label = 'Created using ' + get_addon_title() + ' ' + yp.version + ' (' + addon_link + ')'
@@ -3548,13 +3548,13 @@ def remove_temp_uv(obj, entity):
         for uv in uv_layers:
             if uv.name == TEMP_UV or uv.name.startswith(TEMP_UV):
                 try: uv_layers.remove(uv)
-                except: print('EXCEPTIION: Cannot remove temp uv!')
+                except: print('EXCEPTION: Cannot remove temp uv!')
                 #break
 
     if not entity: 
         if uv_layers and len(uv_layers) > 0:
             try: uv_layers.active = uv_layers[0]
-            except: print('EXCEPTIION: Cannot set active uv!')
+            except: print('EXCEPTION: Cannot set active uv!')
         return
 
     m1 = re.match(r'^yp\.layers\[(\d+)\]$', entity.path_from_id())
@@ -3576,17 +3576,17 @@ def remove_temp_uv(obj, entity):
             ):
         if mirror.use_mirror_u:
             try: mirror.mirror_offset_u = obj.yp.ori_mirror_offset_u
-            except: print('EXCEPTIION: Cannot set modifier mirror offset!')
+            except: print('EXCEPTION: Cannot set modifier mirror offset!')
 
         if mirror.use_mirror_v:
             try: mirror.mirror_offset_v = obj.yp.ori_mirror_offset_v
-            except: print('EXCEPTIION: Cannot set modifier mirror offset!')
+            except: print('EXCEPTION: Cannot set modifier mirror offset!')
 
         if is_bl_newer_than(2, 80):
             try: mirror.offset_u = obj.yp.ori_offset_u
-            except: print('EXCEPTIION: Cannot set modifier mirror offset!')
+            except: print('EXCEPTION: Cannot set modifier mirror offset!')
             try: mirror.offset_v = obj.yp.ori_offset_v
-            except: print('EXCEPTIION: Cannot set modifier mirror offset!')
+            except: print('EXCEPTION: Cannot set modifier mirror offset!')
 
 def refresh_temp_uv(obj, entity): 
     if not obj or obj.type != 'MESH':
@@ -3634,11 +3634,11 @@ def refresh_temp_uv(obj, entity):
     if uv_layers.active != entity_uv:
         if uv_layers.active != entity_uv:
             try: uv_layers.active = entity_uv
-            except: print('EXCEPTIION: Cannot set active uv!')
+            except: print('EXCEPTION: Cannot set active uv!')
         # NOTE: Blender 2.90 or lower need to use active render so the UV in image editor paint mode is updated
         if not is_bl_newer_than(2, 91) and not entity_uv.active_render:
             try: entity_uv.active_render = True
-            except: print('EXCEPTIION: Cannot set active uv render!')
+            except: print('EXCEPTION: Cannot set active uv render!')
 
     # Delete previous temp uv
     remove_temp_uv(obj, entity)
@@ -3704,7 +3704,7 @@ def refresh_temp_uv(obj, entity):
     # New uv layers
     temp_uv_layer = uv_layers.new(name=TEMP_UV)
     try: uv_layers.active = temp_uv_layer
-    except: print('EXCEPTIION: Cannot set temporary UV!')
+    except: print('EXCEPTION: Cannot set temporary UV!')
     # NOTE: Blender 2.90 or lower need to use active render so the UV in image editor paint mode is updated
     if not is_bl_newer_than(2, 91):
         temp_uv_layer.active_render = True
@@ -3829,7 +3829,7 @@ def refresh_temp_uv(obj, entity):
     # Set UV mirror offset
     if ori_mode != 'EDIT':
         try: set_uv_mirror_offsets(obj, m)
-        except: print('EXCEPTIION: Cannot set modifier mirror offset!')
+        except: print('EXCEPTION: Cannot set modifier mirror offset!')
 
     # Back to edit mode if originally from there
     if ori_mode == 'EDIT':
@@ -4964,7 +4964,7 @@ def get_material_temp_active_image_node(mat, create_one=False):
     if create_one and not temp:
         try: temp = tree.nodes.new('ShaderNodeTexImage')
         except Exception as e: 
-            print('EXCEPTIION: Cannot create temporary image for non active material! Error:', e)
+            print('EXCEPTION: Cannot create temporary image for non active material! Error:', e)
             return None
         temp.name = TEMP_ACTIVE_IMAGE_NODE_NAME
         temp.image = get_temporary_active_image()

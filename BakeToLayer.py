@@ -1584,8 +1584,7 @@ class YToggleOtherObjectsVisibility(bpy.types.Operator):
 
         for oo in bi.other_objects:
             if oo.object:
-                oo.object.hide_viewport = not current_hidden_state
-                oo.object.hide_render = not current_hidden_state
+                set_object_hide(oo, not current_hidden_state)
 
         return {'FINISHED'}
 
