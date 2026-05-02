@@ -1309,6 +1309,26 @@ class YBakeChannels(bpy.types.Operator, BaseBakeOperator):
     def poll(cls, context):
         return get_active_ypaint_node() and context.object.type == 'MESH'
 
+    def get_channels(self, yp):
+        # List of channels that will be baked
+        chs = []
+        if self.only_active_channel:
+            if yp.active_channel_index < len(yp.channels):
+                active_ch = yp.channels[yp.active_channel_index]
+                chs = [active_ch]
+
+                # Add alpha/color channel pair
+                color_ch, alpha_ch = get_color_alpha_ch_pairs(yp)
+                if active_ch == color_ch:
+                    chs.append(alpha_ch)
+                elif active_ch == alpha_ch:
+                    chs.append(color_ch)
+
+        else:
+            chs = [ch for ch in yp.channels]
+
+        return chs
+
     def invoke(self, context, event):
         self.invoke_operator(context)
 
@@ -1338,28 +1358,15 @@ class YBakeChannels(bpy.types.Operator, BaseBakeOperator):
                     self.uv_map_coll.add().name = uv.name
 
         # List of channels that will be baked
-        self.channels = []
-        if self.only_active_channel:
-            if yp.active_channel_index < len(yp.channels):
-                active_ch = yp.channels[yp.active_channel_index]
-                self.channels = [active_ch]
-
-                # Add alpha/color channel pair
-                color_ch, alpha_ch = get_color_alpha_ch_pairs(yp)
-                if active_ch == color_ch:
-                    self.channels.append(alpha_ch)
-                elif active_ch == alpha_ch:
-                    self.channels.append(color_ch)
-
-        else: self.channels = yp.channels
+        channels = self.get_channels(yp)
 
         self.no_layer_using = False
         self.enable_bake_as_vcol = False
-        if len(self.channels) > 0:
+        if len(channels) > 0:
 
             # Check if any layer is using the channels
             layer_found = False
-            for ch in self.channels:
+            for ch in channels:
                 if is_any_layer_using_channel(ch, node):
                     layer_found = True
                     break
@@ -1367,7 +1374,7 @@ class YBakeChannels(bpy.types.Operator, BaseBakeOperator):
                 self.no_layer_using = True
 
             bi = None
-            for ch in self.channels:
+            for ch in channels:
                 baked = node.node_tree.nodes.get(ch.baked)
                 if baked and baked.image:
                     if baked.image.y_bake_info.is_baked:
@@ -1376,7 +1383,7 @@ class YBakeChannels(bpy.types.Operator, BaseBakeOperator):
                     self.height = baked.image.size[1] if baked.image.size[1] != 0 else ypup.default_new_image_size
                     break
             
-            for ch in self.channels:
+            for ch in channels:
                 if ch.enable_bake_to_vcol:
                     self.enable_bake_as_vcol = True
                     break
@@ -1447,7 +1454,7 @@ class YBakeChannels(bpy.types.Operator, BaseBakeOperator):
         # NOTE: Because of api changes, vertex color shift doesn't work with Blender 3.2
         active_channel = None
         if self.only_active_channel and not is_bl_equal(3, 2):
-            active_channel = self.channels[0]
+            active_channel = channels[0]
             if active_channel.enable_bake_to_vcol:
                 ccol.separator()
                 ccol.label(text='')
@@ -1512,7 +1519,7 @@ class YBakeChannels(bpy.types.Operator, BaseBakeOperator):
         if is_bl_newer_than(2, 81):
             ccol.prop(self, 'denoise', text='Use Denoise')
 
-        any_color_channel = any([c for c in self.channels if c.type == 'RGB' and c.colorspace == 'SRGB' and c.use_clamp])
+        any_color_channel = any([c for c in channels if c.type == 'RGB' and c.colorspace == 'SRGB' and c.use_clamp])
         if any_color_channel:
             if not self.use_dithering:
                 ccol.prop(self, 'use_dithering', text='Use Dithering')
@@ -1538,12 +1545,12 @@ class YBakeChannels(bpy.types.Operator, BaseBakeOperator):
         obj = context.object
         mat = obj.active_material
 
-        if len(self.channels) == 0:
+        if len(channels) == 0:
             self.report({'ERROR'}, "This node has no channel!")
             return self.execute_operator_cancelled(context)
 
         if self.only_active_channel and self.no_layer_using:
-            self.report({'ERROR'}, "No layer is using '"+self.channels[0].name+"' channel!")
+            self.report({'ERROR'}, "No layer is using '"+channels[0].name+"' channel!")
             return self.execute_operator_cancelled(context)
 
         if self.no_layer_using:
@@ -1730,7 +1737,7 @@ class YBakeChannels(bpy.types.Operator, BaseBakeOperator):
 
         # Process baked images
         baked_images = []
-        for i, ch in enumerate(self.channels):
+        for i, ch in enumerate(channels):
             if ch.no_layer_using: continue
 
             baked = tree.nodes.get(ch.baked)
@@ -1853,7 +1860,7 @@ class YBakeChannels(bpy.types.Operator, BaseBakeOperator):
                 color = []
                 for letter in rgba_letters:
                     btc = getattr(bt, letter)
-                    ch = [c for c in self.channels if c.name == (getattr(btc, 'channel_name'))]
+                    ch = [c for c in channels if c.name == (getattr(btc, 'channel_name'))]
                     if ch: ch = ch[0]
                     if ch and ch.type == 'NORMAL':
                         if btc.normal_type in {'COMBINED', 'OVERLAY_ONLY'}:
@@ -1921,7 +1928,7 @@ class YBakeChannels(bpy.types.Operator, BaseBakeOperator):
                 # Copy image channels
                 for i, letter in enumerate(rgba_letters):
                     btc = getattr(bt, letter)
-                    ch = [c for c in self.channels if c.name == (getattr(btc, 'channel_name'))]
+                    ch = [c for c in channels if c.name == (getattr(btc, 'channel_name'))]
                     if ch:
                         ch = ch[0]
 
@@ -2007,7 +2014,7 @@ class YBakeChannels(bpy.types.Operator, BaseBakeOperator):
             is_do_nothing = True
             is_sort_by_channel = False
             if self.only_active_channel:
-                active_channel = self.channels[0]
+                active_channel = channels[0]
                 if active_channel.enable_bake_to_vcol and self.vcol_force_first_ch_idx_bool:
                     real_force_first_ch_idx = yp.active_channel_index
                     is_do_nothing = False
@@ -2017,8 +2024,8 @@ class YBakeChannels(bpy.types.Operator, BaseBakeOperator):
                 # check index, prevent crash
                 if not (is_do_nothing or is_sort_by_channel) and self.vcol_force_first_ch_idx != '':
                     real_force_first_ch_idx = int(self.vcol_force_first_ch_idx) - 2
-                    if real_force_first_ch_idx < len(self.channels) and real_force_first_ch_idx >= 0:
-                        target_ch = self.channels[real_force_first_ch_idx]
+                    if real_force_first_ch_idx < len(channels) and real_force_first_ch_idx >= 0:
+                        target_ch = channels[real_force_first_ch_idx]
                         if not (target_ch and target_ch.enable_bake_to_vcol):
                             real_force_first_ch_idx = -1
                     else: real_force_first_ch_idx = -1
@@ -2030,7 +2037,7 @@ class YBakeChannels(bpy.types.Operator, BaseBakeOperator):
                 book, objs, yp, disable_problematic_modifiers=True,
                 bake_device=self.bake_device, bake_target='VERTEX_COLORS'
             )
-            for ch in self.channels:
+            for ch in channels:
                 if ch.enable_bake_to_vcol and ch.type != 'NORMAL':
 
                     # Get vcol name
