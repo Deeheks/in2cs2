@@ -1275,12 +1275,11 @@ def get_active_paint_slot_image():
 
     return image
 
-def safely_set_image_paint_canvas(image, scene=None):
-    if not scene: scene = bpy.context.scene
-
+def safely_set_image_paint_canvas(image):
     # HACK: Remember all original images in all image editors since setting canvas/paint slot will replace all of them
     ori_editor_imgs, ori_editor_pins = get_editor_images_dict(return_pins=True)
 
+    scene = bpy.context.scene
     try:
         scene.tool_settings.image_paint.canvas = image
         success = True
@@ -1293,7 +1292,7 @@ def set_image_paint_canvas(image):
     scene = bpy.context.scene
     try:
         scene.tool_settings.image_paint.mode = 'IMAGE'
-        safely_set_image_paint_canvas(image, scene)
+        safely_set_image_paint_canvas(image)
     except Exception as e: print(e)
 
 # Check if name already available on the list
@@ -1470,7 +1469,7 @@ def safe_remove_image(image, remove_on_disk=False, user=None, user_prop=''):
 
         # Remove image from canvas
         if scene.tool_settings.image_paint.canvas == image:
-            safely_set_image_paint_canvas(None, scene)
+            safely_set_image_paint_canvas(None)
 
         if remove_on_disk and not image.packed_file and image.filepath != '':
             if image.source == 'TILED':
