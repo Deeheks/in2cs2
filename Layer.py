@@ -1303,6 +1303,8 @@ class YNewLayer(bpy.types.Operator):
         # Init mask uv name
         if self.add_mask and self.mask_uv_name == '':
             obj = context.object
+            node = get_active_ypaint_node()
+            yp = node.node_tree.yp
 
             uv_name = get_default_uv_name(obj, self.yp)
             self.mask_uv_name = uv_name
