@@ -3000,8 +3000,9 @@ def remove_preview(mat, advanced=False):
     preview = nodes.get(EMISSION_VIEWER)
     scene = bpy.context.scene
 
-    if preview: 
-        simple_remove_node(mat.node_tree, preview)
+    if preview:
+        # NOTE: Make sure to not remove preview images since it can cause crash when preview mode is enabled again
+        simple_remove_node(mat.node_tree, preview, remove_images=False)
         bsdf = nodes.get(mat.yp.ori_bsdf)
         output = get_material_output(mat)
         mat.yp.ori_bsdf = ''
