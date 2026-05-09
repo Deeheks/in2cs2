@@ -4590,7 +4590,7 @@ def ypaint_hacks_and_scene_updates(scene):
                 yp.active_layer_index = yp.active_layer_index
 
 @persistent
-def ypaint_last_object_update(scene):
+def ypaint_object_changes_update(scene):
     ypwm = bpy.context.window_manager.ypprops
     if ypwm.halt_last_object_update: return
 
@@ -4732,6 +4732,26 @@ def ypaint_missmatch_paint_slot_hack(scene):
 
         wmyp.correct_paint_image_name = ''
 
+bus_owner = object()
+
+def obj_changes_callback(*args):
+    ypaint_object_changes_update(bpy.context.scene)
+
+@persistent
+def yp_load_msgbus_subscription(dummy):
+    # Clear owner first
+    bpy.msgbus.clear_by_owner(bus_owner)
+
+    keys = (
+        (bpy.types.LayerObjects, "active"), # Active object changes
+        (bpy.types.Object, "mode"), # Mode changes
+        (bpy.types.Object, "active_material_index"), # Active material changes
+    )
+
+    # Subscribe to object changes update
+    for key in keys:
+        bpy.msgbus.subscribe_rna(key=key, owner=bus_owner, args=(), notify=obj_changes_callback)
+
 def get_yp_animated_tree_names():
     wmyp = bpy.context.window_manager.ypprops
 
@@ -4871,20 +4891,22 @@ def register():
 
     # Handlers
     if is_bl_newer_than(2, 80):
-        bpy.app.handlers.depsgraph_update_post.append(ypaint_last_object_update)
-        bpy.app.handlers.depsgraph_update_post.append(ypaint_missmatch_paint_slot_hack)
-
         # Paint slot hack is no longer necessary with Blender 5.1
         if not is_bl_newer_than(5, 1):
             bpy.app.handlers.depsgraph_update_post.append(ypaint_missmatch_paint_slot_hack)
     else:
-        bpy.app.handlers.scene_update_pre.append(ypaint_last_object_update)
+        bpy.app.handlers.scene_update_pre.append(ypaint_object_changes_update)
         bpy.app.handlers.scene_update_pre.append(ypaint_hacks_and_scene_updates)
 
     if is_bl_newer_than(3, 6):
         bpy.app.handlers.animation_playback_pre.append(ypaint_playback_preparations)
 
     bpy.app.handlers.frame_change_pre.append(ypaint_force_update_on_anim)
+
+    if is_bl_newer_than(2, 80):
+        # Msgbus Subscription
+        yp_load_msgbus_subscription(None)
+        bpy.app.handlers.load_post.append(yp_load_msgbus_subscription)
 
 def unregister():
     bpy.utils.unregister_class(YSelectMaterialPolygons)
@@ -4926,15 +4948,18 @@ def unregister():
 
     # Remove handlers
     if is_bl_newer_than(2, 80):
-        bpy.app.handlers.depsgraph_update_post.remove(ypaint_last_object_update)
         if not is_bl_newer_than(5, 1):
             bpy.app.handlers.depsgraph_update_post.remove(ypaint_missmatch_paint_slot_hack)
     else:
         bpy.app.handlers.scene_update_pre.remove(ypaint_hacks_and_scene_updates)
-        bpy.app.handlers.scene_update_pre.remove(ypaint_last_object_update)
+        bpy.app.handlers.scene_update_pre.remove(ypaint_object_changes_update)
 
     if is_bl_newer_than(3, 6):
         bpy.app.handlers.animation_playback_pre.remove(ypaint_playback_preparations)
 
     bpy.app.handlers.frame_change_pre.remove(ypaint_force_update_on_anim)
 
+    if is_bl_newer_than(2, 80):
+        # Remove msgbus subscription
+        bpy.msgbus.clear_by_owner(bus_owner)
+        bpy.app.handlers.load_post.remove(yp_load_msgbus_subscription)
