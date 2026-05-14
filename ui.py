@@ -7,7 +7,7 @@ from .common import *
 from .CS2_specific import *
 from .credits_ui import get_collaborators, check_contributors
 
-USE_CACHE_DELTA = 1000
+USE_CACHE_DELTA = 250
 
 RGBA_CHANNEL_PREFIX = {
     'Color' : '',
@@ -4305,9 +4305,8 @@ def main_draw(self, context):
 
     # NOTE: [HACK] Disable cache if delta time already pass the limit
     if ypui.use_cache:
-        delta = get_depsgraph_update_delta_ms()
+        delta = get_node_slider_delta_ms()
         if delta > USE_CACHE_DELTA:
-            #print('Use UI Cache Disabled')
             ypui.use_cache = False
 
     # Update ui props first
@@ -7847,6 +7846,11 @@ def update_mask_channel_ui(self, context):
 
     mask_ch.expand_content = self.expand_content
 
+def update_ui_use_cache(self, context):
+    #print(get_addon_title(), 'UI Use Cache:', self.use_cache)
+    pass
+
+
 class YBakeTargetUI(bpy.types.PropertyGroup):
     expand_content : BoolProperty(
         name = 'Texture Options',
@@ -8227,8 +8231,8 @@ class YPaintUI(bpy.types.PropertyGroup):
     #random_prop : BoolProperty(default=False)
 
     # Cache timer
-    use_cache : BoolProperty(default=False)
-    depsgraph_timer : StringProperty(default='0')
+    use_cache: BoolProperty(default=False, update=update_ui_use_cache)
+    hit_node_slider_timestamp: StringProperty(default='0.0')
 
     # Cache variables
     cache_linear_problem : BoolProperty(default=False)
@@ -8269,40 +8273,35 @@ def load_mat_ui_settings():
             mui.active_ypaint_node = mat.yp.active_ypaint_node
         mui.expand_content = mat.yp.expand_content
 
-def get_depsgraph_update_delta_ms():
+ui_bus_owner = object()
+
+def get_node_slider_delta_ms():
+
     ypui = bpy.context.window_manager.ypui
-    return (time.time() - float(ypui.depsgraph_timer)) * 1000
+    return (time.time() - float(ypui.hit_node_slider_timestamp)) * 1000
+
+def node_slider_callback(*args):
+    ypui = bpy.context.window_manager.ypui
+    ypui.hit_node_slider_timestamp = str(time.time())
+    # Enable the UI cache to improve performace until the time limit
+    if not ypui.use_cache:
+        ypui.use_cache = True
 
 @persistent
-def ypui_cache_timer_check(scene, depsgraph):
-    ypui = bpy.context.window_manager.ypui
+def yp_load_ui_msgbus_subscription(dummy):
+    # Clear owner first
+    bpy.msgbus.clear_by_owner(ui_bus_owner)
 
-    # Check if depsgraph update contains material or shader tree
-    relevant_id_found = False
-    for upd in depsgraph.updates:
-        if type(upd.id) == bpy.types.Material:
-            relevant_id_found = True
-            break
+    # Subscribe to all socket types
+    keys = (
+        (bpy.types.NodeSocketFloat, "default_value"),
+        (bpy.types.NodeSocketFloatFactor, "default_value"),
+        (bpy.types.NodeSocketColor, "default_value"),
+    )
 
-        # Check if yp tree is in depsgraph update
-        #elif type(upd.id) == bpy.types.ShaderNodeTree:
-        #    tree = upd.id
-        #    if tree.yp.is_ypaint_node:
-        #        relevant_id_found = True
-        #        break
-
-    if not relevant_id_found: return
-
-    # NOTE: [HACK] If delta time between two depsgraph update is under 100ms, user probably tweaking a slider, 
-    # so it's better to use cache to improve performance
-    if not ypui.use_cache:
-        delta = get_depsgraph_update_delta_ms()
-        if delta < USE_CACHE_DELTA:
-            #print('Use UI Cache Enabled')
-            ypui.use_cache = True
-            return
-
-    ypui.depsgraph_timer = str(time.time())
+    # Subscribe to node slider update
+    for key in keys:
+        bpy.msgbus.subscribe_rna(key=key, owner=ui_bus_owner, args=(), notify=node_slider_callback)
     
 @persistent
 def yp_save_ui_settings(scene):
@@ -8405,11 +8404,13 @@ def register():
     bpy.app.handlers.load_post.append(yp_load_ui_settings)
     bpy.app.handlers.save_pre.append(yp_save_ui_settings)
 
-    if is_bl_newer_than(2, 81):
-        bpy.app.handlers.depsgraph_update_post.append(ypui_cache_timer_check)
-
     if True:
         ypui = bpy.context.window_manager.ypui
+
+    if is_bl_newer_than(2, 80):
+        # Msgbus Subscription
+        yp_load_ui_msgbus_subscription(None)
+        bpy.app.handlers.load_post.append(yp_load_ui_msgbus_subscription)
 
 
 def unregister():
@@ -8493,6 +8494,7 @@ def unregister():
     bpy.app.handlers.load_post.remove(yp_load_ui_settings)
     bpy.app.handlers.save_pre.remove(yp_save_ui_settings)
 
-    if is_bl_newer_than(2, 81):
-        bpy.app.handlers.depsgraph_update_post.remove(ypui_cache_timer_check)
-
+    if is_bl_newer_than(2, 80):
+        # Remove msgbus subscription
+        bpy.msgbus.clear_by_owner(ui_bus_owner)
+        bpy.app.handlers.load_post.remove(yp_load_ui_msgbus_subscription)
