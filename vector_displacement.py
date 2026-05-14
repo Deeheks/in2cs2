@@ -571,28 +571,23 @@ def apply_mirror_modifier(obj):
     new_mirror.show_in_editmode = show_in_editmode
     new_mirror.show_on_cage = show_on_cage
 
+
 def recover_mirror_modifier(obj):
     if obj.yp_vdm.mirror_modifier_name == '': return
 
-    # Go to edit mode to delete mirrored verts
-    bpy.ops.object.mode_set(mode='EDIT')
+    bm = bmesh.new()
+    bm.from_mesh(obj.data)
 
-    # Get bmesh
-    bm = bmesh.from_edit_mesh(obj.data)
     bm.verts.ensure_lookup_table()
 
-    # Deselect all first
-    bpy.ops.mesh.select_all(action='DESELECT')
+    # Delete vertices after the original count
+    verts_to_delete = list(bm.verts[obj.yp_vdm.num_verts:])
+    for vert in verts_to_delete:
+        bm.verts.remove(vert)
 
-    # Select all vertices outside
-    for i in range(obj.yp_vdm.num_verts, len(bm.verts)):
-        bm.verts[i].select = True
-
-    # Delete mirrored vertices
-    bpy.ops.mesh.delete(type='VERT')
-
-    # Back to object mode
-    bpy.ops.object.mode_set(mode='OBJECT')
+    bm.to_mesh(obj.data)
+    bm.free()
+    obj.data.update()
 
     # Show up the modifier back
     mirror = obj.modifiers.get(obj.yp_vdm.mirror_modifier_name)
