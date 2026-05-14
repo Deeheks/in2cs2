@@ -1661,6 +1661,29 @@ def create_plane_on_object_mode():
 
     return bpy.context.view_layer.objects.active
 
+
+def flip_mesh_normals(obj):
+    if not obj or obj.type != 'MESH': return
+
+    # Create BMesh from object data
+    bm = bmesh.new()
+    bm.from_mesh(obj.data)
+
+    if is_bl_newer_than(2, 80):
+        for face in bm.faces:
+            face.normal_flip()
+    else:
+        for face in bm.faces:
+            bmesh.utils.face_flip(face)
+
+    # Write changes back to the mesh
+    bm.to_mesh(obj.data)
+    bm.free()
+
+    # Update viewport to show changes
+    obj.data.update()
+
+
 def fxaa_image(image, alpha_aware=True, bake_device='CPU', first_tile_only=False):
     T = time.time()
     print('FXAA: Doing FXAA pass on', image.name + '...')
@@ -1799,8 +1822,8 @@ def fxaa_image(image, alpha_aware=True, bake_device='CPU', first_tile_only=False
 
     return image
 
-def bake_to_vcol(mat, node, root_ch, objs, extra_channel=None, extra_multiplier=1.0, bake_alpha=False, vcol_name=''):
 
+def bake_to_vcol(mat, node, root_ch, objs, extra_channel=None, extra_multiplier=1.0, bake_alpha=False, vcol_name=''):
     yp = node.node_tree.yp
 
     # Create setup nodes
@@ -3215,28 +3238,9 @@ def bake_to_entity(bprops, overwrite_img=None, segment=None):
 
     # Flip normals setup
     if bprops.flip_normals:
-        #ori_mode[obj.name] = obj.mode
-        if is_bl_newer_than(2, 80):
-            # Deselect other objects first
-            for o in other_objs:
-                o.select_set(False)
-            bpy.ops.object.mode_set(mode='EDIT')
-            bpy.ops.mesh.reveal()
-            bpy.ops.mesh.select_all(action='SELECT')
-            bpy.ops.mesh.flip_normals()
-            bpy.ops.object.mode_set(mode='OBJECT')
-            # Reselect other objects
-            for o in other_objs:
-                o.select_set(True)
-        else:
-            for ob in objs:
-                if ob in other_objs: continue
-                scene.objects.active = ob
-                bpy.ops.object.mode_set(mode='EDIT')
-                bpy.ops.mesh.reveal()
-                bpy.ops.mesh.select_all(action='SELECT')
-                bpy.ops.mesh.flip_normals()
-                bpy.ops.object.mode_set(mode='OBJECT')
+        for ob in objs:
+            if ob in other_objs: continue
+            flip_mesh_normals(ob)
 
     # More setup
     ori_mods = {}
@@ -4181,31 +4185,9 @@ def bake_to_entity(bprops, overwrite_img=None, segment=None):
 
     # Recover flip normals setup
     if bprops.flip_normals:
-        #bpy.ops.object.mode_set(mode = 'EDIT')
-        #bpy.ops.mesh.flip_normals()
-        #bpy.ops.mesh.select_all(action='DESELECT')
-        #bpy.ops.object.mode_set(mode = ori_mode)
-        if is_bl_newer_than(2, 80):
-            # Deselect other objects first
-            for o in other_objs:
-                o.select_set(False)
-            bpy.ops.object.mode_set(mode='EDIT')
-            bpy.ops.mesh.reveal()
-            bpy.ops.mesh.select_all(action='SELECT')
-            bpy.ops.mesh.flip_normals()
-            bpy.ops.object.mode_set(mode='OBJECT')
-            # Reselect other objects
-            for o in other_objs:
-                o.select_set(True)
-        else:
-            for ob in objs:
-                if ob in other_objs: continue
-                scene.objects.active = ob
-                bpy.ops.object.mode_set(mode='EDIT')
-                bpy.ops.mesh.reveal()
-                bpy.ops.mesh.select_all(action='SELECT')
-                bpy.ops.mesh.flip_normals()
-                bpy.ops.object.mode_set(mode='OBJECT')
+        for ob in objs:
+            if ob in other_objs: continue
+            flip_mesh_normals(ob)
 
     # Recover subdiv setup
     if height_root_ch and subdiv_setup_changes:
