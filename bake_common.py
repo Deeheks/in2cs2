@@ -5180,7 +5180,6 @@ class BaseBakeOperator():
 
         # Depsgraph update functions can cause crash or bake inconsistencies, so halt them before any baking operation
         wmyp = bpy.context.window_manager.ypprops
-        wmyp.halt_paint_slot_hacks = True
         wmyp.halt_last_object_update = True
 
         return True
@@ -5188,7 +5187,6 @@ class BaseBakeOperator():
     def execute_operator_recover(self, context):
         # Recover depsgraph update functions
         wmyp = bpy.context.window_manager.ypprops
-        wmyp.halt_paint_slot_hacks = False
         wmyp.halt_last_object_update = False
 
     def execute_operator_finished(self, context):

@@ -5209,6 +5209,7 @@ def set_active_paint_slot_entity(yp):
                 # HACK: Just in case paint slot does not update (Necessary for Blender 5.0 and lower)
                 if not is_bl_newer_than(5, 1):
                     wmyp.correct_paint_image_name = img.name
+                    wmyp.use_paint_slot_hacks = True
                 break
         
     else:
