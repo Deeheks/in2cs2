@@ -1537,9 +1537,8 @@ def noise_blur_image(image, alpha_aware=True, factor=1.0, samples=512, bake_devi
         ori_layer_collection = bpy.context.view_layer.active_layer_collection
         bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection
 
-    # Create new plane
-    bpy.ops.object.mode_set(mode = 'OBJECT')
-    plane_obj = create_plane_on_object_mode()
+    # Create a plane for baking
+    plane_obj = create_plane_object()
 
     prepare_bake_settings(book, [plane_obj], samples=samples, margin=0, bake_device=bake_device)
 
@@ -1646,20 +1645,30 @@ def noise_blur_image(image, alpha_aware=True, factor=1.0, samples=512, bake_devi
 
     return image
 
-def create_plane_on_object_mode():
 
-    if not is_bl_newer_than(2, 77):
-        bpy.ops.mesh.primitive_plane_add()
-        bpy.ops.object.mode_set(mode='EDIT')
-        bpy.ops.uv.unwrap(method='ANGLE_BASED', margin=0.0)
-        bpy.ops.object.mode_set(mode='OBJECT')
-    else: 
-        bpy.ops.mesh.primitive_plane_add(calc_uvs=True)
+def create_plane_object():
+    # Create the mesh
+    mesh = bpy.data.meshes.new("Plane")
+    obj = bpy.data.objects.new("Plane", mesh)
+    link_object(bpy.context.scene, obj)
 
-    if not is_bl_newer_than(2, 80):
-        return bpy.context.scene.objects.active
+    # Define the geometry
+    verts = [(-1.0, -1.0, 0.0), (1.0, -1.0, 0.0), (1.0, 1.0, 0.0), (-1.0, 1.0, 0.0)]
+    faces = [(0, 1, 2, 3)]
+    mesh.from_pydata(verts, [], faces)
+    mesh.update()
 
-    return bpy.context.view_layer.objects.active
+    # Create new UVmap
+    uv_layers = get_uv_layers(obj)
+    uv_layer = uv_layers.new(name="UVMap")
+
+    # Set UV coordinates
+    uv_coords = [(0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0)]
+    uv_layer = mesh.uv_layers[-1]  # Getting the uv layer again for Blender 2.7x compatibility
+    for i, loop in enumerate(mesh.loops):
+        uv_layer.data[loop.index].uv = uv_coords[i]
+
+    return obj
 
 
 def flip_mesh_normals(obj):
@@ -1694,9 +1703,8 @@ def fxaa_image(image, alpha_aware=True, bake_device='CPU', first_tile_only=False
         ori_layer_collection = bpy.context.view_layer.active_layer_collection
         bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection
 
-    # Create new plane
-    bpy.ops.object.mode_set(mode = 'OBJECT')
-    plane_obj = create_plane_on_object_mode()
+    # Create a plane for baking
+    plane_obj = create_plane_object()
 
     prepare_bake_settings(book, [plane_obj], samples=1, margin=0, bake_device=bake_device)
 
@@ -4868,9 +4876,8 @@ def resize_image(image, width, height, colorspace='Non-Color', samples=1, margin
         ori_layer_collection = bpy.context.view_layer.active_layer_collection
         bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection
 
-    # Create new plane
-    bpy.ops.object.mode_set(mode='OBJECT')
-    plane_obj = create_plane_on_object_mode()
+    # Create a plane for baking
+    plane_obj = create_plane_object()
 
     prepare_bake_settings(book, [plane_obj], samples=samples, margin=margin, bake_device=bake_device)
 
