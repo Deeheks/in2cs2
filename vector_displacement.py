@@ -1061,6 +1061,9 @@ def get_combined_vdm_image(obj, uv_name, width=1024, height=1024, disable_curren
     return image
 
 def get_tangent_bitangent_images(obj, uv_name):
+    ori_mode = obj.mode
+    if ori_mode == 'EDIT':
+        bpy.ops.object.mode_set(mode='OBJECT')
 
     tanimage_name = obj.name + '_' + uv_name + CACHE_TANGENT_IMAGE_SUFFIX
     bitimage_name = obj.name + '_' + uv_name + CACHE_BITANGENT_IMAGE_SUFFIX
@@ -1225,6 +1228,9 @@ def get_tangent_bitangent_images(obj, uv_name):
         set_active_object(obj)
         set_object_select(obj, True)
 
+    if ori_mode != obj.mode:
+        bpy.ops.object.mode_set(mode=ori_mode)
+
     return tanimage, bitimage
 
 def get_vdm_intensity(layer, ch):
@@ -1251,6 +1257,10 @@ def is_multi_disp_used(yp):
 
 def convert_vdm_to_multires(obj, vdm_image, uv_name, intensity=1.0, flip_yz=False, use_temp_multires=False):
     # TODO: Multi objects awareness
+
+    ori_mode = obj.mode
+    if ori_mode == 'EDIT':
+        bpy.ops.object.mode_set(mode='OBJECT')
 
     scene = bpy.context.scene
 
@@ -1384,6 +1394,9 @@ def convert_vdm_to_multires(obj, vdm_image, uv_name, intensity=1.0, flip_yz=Fals
     # Remove temp data
     remove_mesh_obj(temp) 
     bpy.data.node_groups.remove(vdm_loader)
+
+    if ori_mode != obj.mode:
+        bpy.ops.object.mode_set(mode=ori_mode)
 
 class YSculptImage(bpy.types.Operator):
     bl_idname = "sculpt.y_sculpt_image"
