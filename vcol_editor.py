@@ -408,54 +408,49 @@ class YSelectFacesByVcol(bpy.types.Operator):
         threshold = .004
         mat = context.object.active_material
         vcol_name = get_active_vertex_color(context.object).name
-        target = Color((self.color[0], self.color[1], self.color[2]))
-        if not is_bl_newer_than(3, 2):
-            target = linear_to_srgb(target)
+        target = Vector(linear_to_srgb(Color((self.color[0], self.color[1], self.color[2]))))
 
         if mat.users > 1 and is_bl_newer_than(2, 80):
             objs = get_all_objects_with_same_materials(mat, mesh_only=True)
         else: objs = [context.object]
 
-        # Select object first
+        # Select the objects first
         bpy.ops.object.mode_set(mode="OBJECT")
         bpy.ops.object.select_all(action='DESELECT')
         for obj in objs:
             set_object_select(obj, True)
+
+        # Reveal all hidden polygons
         bpy.ops.object.mode_set(mode="EDIT")
         bpy.context.tool_settings.mesh_select_mode = (False, False, True)
         bpy.ops.mesh.reveal()
-        bpy.ops.mesh.select_all(action='DESELECT')
 
+        # Select polygons based on target color (Need to be in object mode)
         bpy.ops.object.mode_set(mode="OBJECT")
-        
         for obj in objs:
+            mesh = obj.data
 
-            # Select vcol
-            vcols = get_vertex_colors(obj)
-            vcol = vcols.get(vcol_name)
-            if not vcol: continue
-            set_active_vertex_color(obj, vcol)
+            # Create bmesh from the object mesh
+            bm = bmesh.new()
+            bm.from_mesh(mesh)
 
-            # Select polygons
-            for p in obj.data.polygons:
-                r = g = b = 0
-                for i in p.loop_indices:
-                    c = vcol.data[i].color
-                    r += c[0]
-                    g += c[1]
-                    b += c[2]
-                r /= p.loop_total
-                g /= p.loop_total
-                b /= p.loop_total
-                source = Color((r, g, b))
+            lcol = bm.loops.layers.color.get(vcol_name)
+            if not lcol: continue
             
-                if (abs(source.r - target.r) < threshold and
-                    abs(source.g - target.g) < threshold and
-                    abs(source.b - target.b) < threshold):
+            # Select the faces
+            for face in bm.faces:
+                # Alpha is not considered for now
+                face.select = any((Vector((l[lcol][0], l[lcol][1], l[lcol][2])) - target).length < threshold for l in face.loops)
             
-                    p.select = True
-                    #p.select = not self.deselect
+            # Write changes back to the mesh
+            bm.to_mesh(mesh)
+            bm.free()
 
+            # In 2.80+, selection requires a tag_update
+            if is_bl_newer_than(2, 80):
+                mesh.update()
+
+        # Go back to edit mode
         bpy.ops.object.mode_set(mode="EDIT")
         
         return {'FINISHED'}
