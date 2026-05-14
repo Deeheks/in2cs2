@@ -277,8 +277,9 @@ def check_start_end_root_ch_nodes(group_tree, specific_channel=None):
                         for fc in fcs:
                             if fc.data_path == channel.path_from_id() + '.height_tweak':
                                 index = \
-                                [i for i, inp in enumerate(end_max_height_tweak.inputs) if inp.name == 'Height Tweak'][
-                                    0]
+                                    [i for i, inp in enumerate(end_max_height_tweak.inputs) if
+                                     inp.name == 'Height Tweak'][
+                                        0]
                                 fc.data_path = 'nodes["' + end_max_height_tweak.name + '"].inputs[' + str(
                                     index) + '].default_value'
 
@@ -348,8 +349,9 @@ def check_start_end_root_ch_nodes(group_tree, specific_channel=None):
                     # Rename fcurve datapath
                     for fcs in get_action_and_driver_fcurves(group_tree):
                         for fc in fcs:
-                            match = re.match(r'^nodes\["' + channel.end_linear + r'"\]\.inputs\[(\d+)\]\.default_value$',
-                                             fc.data_path)
+                            match = re.match(
+                                r'^nodes\["' + channel.end_linear + r'"\]\.inputs\[(\d+)\]\.default_value$',
+                                fc.data_path)
                             if match:
                                 index = int(match.group(1))
                                 if end_linear.inputs[index].name == 'Normal Tweak':

@@ -524,6 +524,10 @@ def prepare_other_objs_channels(yp, other_objs):
 
     ori_mat_no_nodes = []
 
+    # Realize particle instances
+    other_temp_objs = realize_particle_instances(other_objs)
+    other_objs.extend(other_temp_objs)
+
     valid_bsdf_types = ['BSDF_PRINCIPLED', 'BSDF_DIFFUSE', 'EMISSION']
 
     for ch in yp.channels:
@@ -670,7 +674,7 @@ def prepare_other_objs_channels(yp, other_objs):
         ch_other_alpha_sockets.append(alpha_sockets)
         ch_other_alpha_defaults.append(alpha_defaults)
 
-    return ch_other_objects, ch_other_mats, ch_other_sockets, ch_other_defaults, ch_other_default_weights, ch_other_alpha_sockets, ch_other_alpha_defaults, ori_mat_no_nodes
+    return ch_other_objects, ch_other_mats, ch_other_sockets, ch_other_defaults, ch_other_default_weights, ch_other_alpha_sockets, ch_other_alpha_defaults, ori_mat_no_nodes, other_temp_objs
 
 def recover_other_objs_channels(other_objs, ori_mat_no_nodes):
     for o in other_objs:
@@ -1073,11 +1077,11 @@ def recover_bake_settings(book, yp=None, recover_active_uv=False, mat=None):
                 o.hide_select = True
             else: o.hide_select = False
 
-            # Recover space data
-            space = bpy.context.space_data
-            if space.type == 'VIEW_3D':
-                space.show_object_viewport_mesh = book['ori_space_show_object_viewport_mesh']
-                space.show_object_select_mesh = book['ori_space_show_object_select_mesh']
+        # Recover space data
+        space = bpy.context.space_data
+        if space.type == 'VIEW_3D':
+            space.show_object_viewport_mesh = book['ori_space_show_object_viewport_mesh']
+            space.show_object_select_mesh = book['ori_space_show_object_select_mesh']
 
     else:
         for o in scene.objects:
@@ -1104,16 +1108,16 @@ def recover_bake_settings(book, yp=None, recover_active_uv=False, mat=None):
 
         area.spaces[0].use_image_pin = book['editor_pins'][i]
 
-        # Recover local view
-        space = bpy.context.space_data
-        if space.type == 'VIEW_3D':
-            if book['ori_space_local_view'] and not space.local_view:
-                try:
-                    bpy.ops.view3d.localview()
-                except:
-                    pass
-                if 'ori_space_view_matrix' in book:
-                    space.region_3d.view_matrix = book['ori_space_view_matrix']
+    # Recover local view
+    space = bpy.context.space_data
+    if space.type == 'VIEW_3D':
+        if book['ori_space_local_view'] and not space.local_view:
+            try:
+                bpy.ops.view3d.localview()
+            except:
+                pass
+            if 'ori_space_view_matrix' in book:
+                space.region_3d.view_matrix = book['ori_space_view_matrix']
 
     # Recover ypui
     #ypui.disable_auto_temp_uv_update = book['ori_disable_temp_uv']
@@ -1539,7 +1543,6 @@ def noise_blur_image(image, alpha_aware=True, factor=1.0, samples=512, bake_devi
 
     # Create a plane for baking
     plane_obj = create_plane_object()
-
     prepare_bake_settings(book, [plane_obj], samples=samples, margin=0, bake_device=bake_device)
 
     # Create temporary material
@@ -1645,7 +1648,6 @@ def noise_blur_image(image, alpha_aware=True, factor=1.0, samples=512, bake_devi
 
     return image
 
-
 def create_plane_object():
     # Create the mesh
     mesh = bpy.data.meshes.new("Plane")
@@ -1670,7 +1672,6 @@ def create_plane_object():
 
     return obj
 
-
 def flip_mesh_normals(obj):
     if not obj or obj.type != 'MESH': return
 
@@ -1692,7 +1693,6 @@ def flip_mesh_normals(obj):
     # Update viewport to show changes
     obj.data.update()
 
-
 def fxaa_image(image, alpha_aware=True, bake_device='CPU', first_tile_only=False):
     T = time.time()
     print('FXAA: Doing FXAA pass on', image.name + '...')
@@ -1705,7 +1705,6 @@ def fxaa_image(image, alpha_aware=True, bake_device='CPU', first_tile_only=False
 
     # Create a plane for baking
     plane_obj = create_plane_object()
-
     prepare_bake_settings(book, [plane_obj], samples=1, margin=0, bake_device=bake_device)
 
     # Create temporary material
@@ -1829,7 +1828,6 @@ def fxaa_image(image, alpha_aware=True, bake_device='CPU', first_tile_only=False
     print('FXAA:', image.name, 'FXAA pass is done in', '{:0.2f}'.format(time.time() - T), 'seconds!')
 
     return image
-
 
 def bake_to_vcol(mat, node, root_ch, objs, extra_channel=None, extra_multiplier=1.0, bake_alpha=False, vcol_name=''):
     yp = node.node_tree.yp
@@ -2251,7 +2249,6 @@ def bake_channel(
     # Normal baking need special node setup
     bsdf = None
     norm = None
-    armature_objs = []
     if root_ch.type == 'NORMAL':
 
         # NOTE: Object space normal layers currently will gives less accurate result when baking using BSDF
@@ -2265,10 +2262,6 @@ def bake_channel(
 
     # Set tex as active node
     mat.node_tree.nodes.active = tex
-
-    #disp_from_socket = None
-    #for l in output.inputs['Displacement'].links:
-    #    disp_from_socket = l.from_socket
 
     # Original displacement connection
     ori_disp_from_node = ''
@@ -2948,7 +2941,7 @@ def bake_to_entity(bprops, overwrite_img=None, segment=None):
     # To hold temporary objects
     temp_objs = []
     instanced_temp_objs = []
-    
+
     if bprops.type.startswith('OTHER_OBJECT_'):
 
         # Get other objects based on selected objects with different material
@@ -3135,8 +3128,8 @@ def bake_to_entity(bprops, overwrite_img=None, segment=None):
         bpy.ops.mesh.y_vcol_fill(color_option ='WHITE')
         bpy.ops.object.mode_set(mode = 'OBJECT')
 
-        # Get color alpha channel pair
-        root_color_ch, root_alpha_ch = get_color_alpha_ch_pairs(yp)
+    # Get color alpha channel pair
+    root_color_ch, root_alpha_ch = get_color_alpha_ch_pairs(yp)
 
     # Check if there's channel using alpha
     alpha_outp = None
@@ -3295,9 +3288,6 @@ def bake_to_entity(bprops, overwrite_img=None, segment=None):
             for m in get_problematic_modifiers(ob):
                 m.show_render = False
 
-        ori_mat_ids[ob.name] = []
-        ori_loop_locs[ob.name] = []
-
         if bprops.subsurf_influence and not bprops.use_baked_disp and not bprops.type.startswith('MULTIRES_'):
             for m in ob.modifiers:
                 if m.type == 'MULTIRES':
@@ -3305,7 +3295,10 @@ def bake_to_entity(bprops, overwrite_img=None, segment=None):
                     m.render_levels = m.total_levels
                     break
 
-        if len(ob.data.materials) > 1:
+        # NOTE: This code can freeze blender if there are too many polygons, but it's needed for Blender 2.83 and lower
+        ori_mat_ids[ob.name] = []
+        ori_loop_locs[ob.name] = []
+        if not is_bl_newer_than(2, 90) and len(ob.data.materials) > 1:
             active_mat_id = [i for i, m in enumerate(ob.data.materials) if m == mat]
             if active_mat_id: active_mat_id = active_mat_id[0]
             else: continue
@@ -3576,8 +3569,7 @@ def bake_to_entity(bprops, overwrite_img=None, segment=None):
             image_name += ' ' + yp.channels[idx].name
 
             # Skip alpha channel since it will be included into color channel
-            root_color_ch, root_alpha_ch = get_color_alpha_ch_pairs(yp)
-            if idx > 0  and root_ch == root_alpha_ch:
+            if idx > 0 and root_ch == root_alpha_ch:
                 continue
 
             # Hide irrelevant objects
@@ -4212,7 +4204,7 @@ def bake_to_entity(bprops, overwrite_img=None, segment=None):
             if vcol: vcols.remove(vcol)
 
     # Recover flip normals setup
-    if need_flip_normals_ops:
+    if need_flip_normals:
         for ob in objs:
             if ob in other_objs: continue
             flip_mesh_normals(ob)
@@ -4853,6 +4845,7 @@ def get_merged_mesh_objects(scene, objs, hide_original=False, disable_problemati
             for attr in reversed(obj.data.attributes):
                 if attr.data_type == 'STRING':
                     obj.data.attributes.remove(attr)
+
     # Set first index as merged object
     merged_obj = new_objs[0]
 
@@ -4903,7 +4896,6 @@ def resize_image(image, width, height, colorspace='Non-Color', samples=1, margin
 
     # Create a plane for baking
     plane_obj = create_plane_object()
-
     prepare_bake_settings(book, [plane_obj], samples=samples, margin=margin, bake_device=bake_device)
 
     mat = bpy.data.materials.new('__TEMP__')

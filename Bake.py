@@ -1402,7 +1402,7 @@ class YBakeChannels(bpy.types.Operator, BaseBakeOperator):
         if self.vcol_force_first_ch_idx == '':
             self.vcol_force_first_ch_idx = 'Do Nothing'
 
-        if (get_user_preferences().skip_property_popups and not event.shift) or len(self.channels) == 0 or self.no_layer_using:
+        if (get_user_preferences().skip_property_popups and not event.shift) or len(channels) == 0 or self.no_layer_using:
             return self.execute(context)
 
         return context.window_manager.invoke_props_dialog(self, width=320)
@@ -1415,7 +1415,8 @@ class YBakeChannels(bpy.types.Operator, BaseBakeOperator):
         node = get_active_ypaint_node()
         yp = node.node_tree.yp
         height_root_ch = get_root_height_channel(yp)
-        
+        channels = self.get_channels(yp)
+
         obj = context.object
         mat = obj.active_material
 
@@ -1544,6 +1545,7 @@ class YBakeChannels(bpy.types.Operator, BaseBakeOperator):
         scene = context.scene
         obj = context.object
         mat = obj.active_material
+        channels = self.get_channels(yp)
 
         if len(channels) == 0:
             self.report({'ERROR'}, "This node has no channel!")
@@ -1704,7 +1706,7 @@ class YBakeChannels(bpy.types.Operator, BaseBakeOperator):
 
         # Bake channels
         baked_exists = []
-        for ch in self.channels:
+        for ch in channels:
 
             # Remove baked node if alpha channel will be combined to color channel
             if alpha_ch == ch and alpha_ch.alpha_combine_to_baked_color:
@@ -1946,6 +1948,8 @@ class YBakeChannels(bpy.types.Operator, BaseBakeOperator):
                         elif ch.type == 'NORMAL' and btc.normal_type == 'DISPLACEMENT':
                             baked = tree.nodes.get(ch.baked_disp)
                             subidx = 0
+                        elif ch.type == 'NORMAL' and btc.normal_type == 'VECTOR_DISPLACEMENT':
+                            baked = tree.nodes.get(ch.baked_vdisp)
                         elif ch == alpha_ch and ch.alpha_combine_to_baked_color:
                             baked = tree.nodes.get(color_ch.baked)
                         else: baked = tree.nodes.get(ch.baked)

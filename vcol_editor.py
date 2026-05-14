@@ -426,14 +426,12 @@ class YSelectFacesByVcol(bpy.types.Operator):
         bpy.context.tool_settings.mesh_select_mode = (False, False, True)
         bpy.ops.mesh.reveal()
 
-        # Select polygons based on target color (Need to be in object mode)
-        bpy.ops.object.mode_set(mode="OBJECT")
+        # Select polygons based on target color
         for obj in objs:
             mesh = obj.data
 
             # Create bmesh from the object mesh
-            bm = bmesh.new()
-            bm.from_mesh(mesh)
+            bm = bmesh.from_edit_mesh(mesh)
 
             lcol = bm.loops.layers.color.get(vcol_name)
             if not lcol: continue
@@ -444,16 +442,8 @@ class YSelectFacesByVcol(bpy.types.Operator):
                 face.select = any((Vector((l[lcol][0], l[lcol][1], l[lcol][2])) - target).length < threshold for l in face.loops)
             
             # Write changes back to the mesh
-            bm.to_mesh(mesh)
-            bm.free()
+            bmesh.update_edit_mesh(mesh)
 
-            # In 2.80+, selection requires a tag_update
-            if is_bl_newer_than(2, 80):
-                mesh.update()
-
-        # Go back to edit mode
-        bpy.ops.object.mode_set(mode="EDIT")
-        
         return {'FINISHED'}
 
 class YVcolFillFaceCustom(bpy.types.Operator):
@@ -675,7 +665,10 @@ class YVcolFill(bpy.types.Operator):
                     if use_numpy:
                         loop_to_vert = numpy.zeros(len(mesh.loops), dtype=numpy.uint32)
                         mesh.loops.foreach_get('vertex_index', loop_to_vert)
-                        loop_indices = (numpy.in1d(loop_to_vert, vert_indices)).nonzero()[0]
+                        # Numpy in1d is deprecated since numpy version 2.0
+                        if version_tuple(numpy.__version__) >= (2, 0, 0):
+                            loop_indices = (numpy.isin(loop_to_vert, vert_indices)).nonzero()[0]
+                        else: loop_indices = (numpy.in1d(loop_to_vert, vert_indices)).nonzero()[0]
                         nvcol = numpy.zeros(len(vcol.data) * dimension, dtype=numpy.float32)
                         vcol.data.foreach_get('color', nvcol)
                         nvcol2D = nvcol.reshape(-1, dimension)

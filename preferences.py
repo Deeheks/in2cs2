@@ -157,14 +157,7 @@ class YPaintPreferences(AddonPreferences):
         default = True
     )
 
-    cs2_ignore_warnings: BoolProperty(
-        name='Ignore Material name warnings',
-        description='Only checks mesh name matching object',
-        default=True
-    )
-
     def draw(self, context):
-        self.layout.prop(self, 'cs2_ignore_warnings')
         if is_bl_newer_than(2, 80):
             self.layout.prop(self, 'default_bake_device')
             self.layout.prop(self, 'icons')

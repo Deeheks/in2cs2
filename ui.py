@@ -1,4 +1,5 @@
 import bpy, re, time, os, sys, json
+import requests, threading
 from bpy.props import *
 from bpy.app.handlers import persistent
 from bpy.app.translations import pgettext_iface
@@ -7,7 +8,7 @@ from .common import *
 from .CS2_specific import *
 from .credits_ui import get_collaborators, check_contributors
 
-USE_CACHE_DELTA = 250
+USE_CACHE_DELTA_MS = 250
 
 RGBA_CHANNEL_PREFIX = {
     'Color' : '',
@@ -1122,7 +1123,6 @@ def draw_root_channels_ui(context, layout, node):
 
         mcol = col.column(align=False)
 
-        channel = yp.channels[yp.active_channel_index]
         mcol.context_pointer_set('channel', channel)
 
         chui = ypui.channel_ui
@@ -4306,7 +4306,7 @@ def main_draw(self, context):
     # NOTE: [HACK] Disable cache if delta time already pass the limit
     if ypui.use_cache:
         delta = get_node_slider_delta_ms()
-        if delta > USE_CACHE_DELTA:
+        if delta > USE_CACHE_DELTA_MS:
             ypui.use_cache = False
 
     # Update ui props first
@@ -4358,16 +4358,16 @@ def main_draw(self, context):
             rrow = box.row(align=True)
             rrow.prop(ypo, 'asset_lod1shares0', text='LOD1 shares Main material')
         elif "_LOD2" in obj_name.upper():
-            if ypo.asset_lod2shares0:
-                ypo.asset_lod2shares1 = False
-            elif ypo.asset_lod2shares1:
-                ypo.asset_lod2shares0 = False
+            if not ypo.asset_lod2shares1:
+                rrow = box.row(align=True)
+                rrow.prop(ypo, 'asset_lod2shares0', text='LOD2 shares Main material')
+            if not ypo.asset_lod2shares0:
+                rrow = box.row(align=True)
+                rrow.prop(ypo, 'asset_lod2shares1', text='LOD2 shares LOD1 material')
+        elif ypo.asset_submesh_type != '':
+            submesh_text = cs2submesh_type(ypo.asset_submesh_type)
             rrow = box.row(align=True)
-            rrow.prop(ypo, 'asset_lod2shares0', text='LOD2 shares Main material')
-            rrow = box.row(align=True)
-            rrow.prop(ypo, 'asset_lod2shares1', text='LOD2 shares LOD1 material')
-            rrow = box.row(align=True)
-            rrow.label(text='(Both not recommended)')
+            rrow.label(text=f"Submesh type: {submesh_text}")
         else:
             rrow = box.row(align=True)
             rrow.prop(ypo, 'asset_uses_shared', text='Use shared material')
@@ -4394,7 +4394,6 @@ def main_draw(self, context):
     icon = 'TRIA_DOWN' if ypui.show_materials else 'TRIA_RIGHT'
     rrow = row.row(align=True)
     text_material = pgettext_iface('Material: ')
-    #if node and len(obj.material_slots) > 0:
     if mat: text_material += mat.name
     else: text_material += '-'
 
@@ -4529,7 +4528,7 @@ def main_draw(self, context):
         col = layout.column()
         col.alert = True
         col.label(text='This node uses newer version!', icon='ERROR')
-        col.operator('wm.url_open', text='Update '+get_addon_title(), icon='ERROR').url = 'https://github.com/Deeheks/in2cs2/releases'
+        col.operator('wm.url_open', text='Update '+get_addon_title(), icon='ERROR').url = 'https://github.com/Deeheks/in2cs2/'
 
     # Message will appear when legacy alpha toggle is enabled by accident
     legacy_alpha_found = False
@@ -8208,7 +8207,6 @@ class YPaintUI(bpy.types.PropertyGroup):
     #mask_ui : PointerProperty(type=YMaskUI)
 
     # Group channel related UI
-    # noinspection PyTypeHints
     channel_idx : IntProperty(default=0)
     channel_ui : PointerProperty(type=YChannelUI)
     channels : CollectionProperty(type=YChannelUI)
@@ -8241,8 +8239,8 @@ class YPaintUI(bpy.types.PropertyGroup):
     #random_prop : BoolProperty(default=False)
 
     # Cache timer
-    use_cache: BoolProperty(default=False, update=update_ui_use_cache)
-    hit_node_slider_timestamp: StringProperty(default='0.0')
+    use_cache : BoolProperty(default=False, update=update_ui_use_cache)
+    hit_node_slider_timestamp : StringProperty(default='0.0')
 
     # Cache variables
     cache_linear_problem : BoolProperty(default=False)
@@ -8286,7 +8284,6 @@ def load_mat_ui_settings():
 ui_bus_owner = object()
 
 def get_node_slider_delta_ms():
-
     ypui = bpy.context.window_manager.ypui
     return (time.time() - float(ypui.hit_node_slider_timestamp)) * 1000
 

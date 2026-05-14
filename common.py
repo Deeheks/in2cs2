@@ -258,10 +258,10 @@ normal_blend_items = (
 )
 
 normal_blend_labels = {
-        'MIX' : 'Mix',
-        'OVERLAY' : 'Overlay',
-        'COMPARE' : 'Compare Height',
-        }
+    'MIX' : 'Mix',
+    'OVERLAY' : 'Overlay',
+    'COMPARE' : 'Compare Height',
+}
 
 normal_space_items = (
     ('TANGENT', 'Tangent Space', 'Tangent space normal mapping'),
@@ -278,11 +278,11 @@ height_blend_items = (
 )
 
 normal_type_labels = {
-        'BUMP_MAP' : 'Bump',
-        'NORMAL_MAP' : 'Normal',
-        'BUMP_NORMAL_MAP' : 'Bump + Normal',
-        'VECTOR_DISPLACEMENT_MAP' : 'Vector Displacement',
-        }
+    'BUMP_MAP' : 'Bump',
+    'NORMAL_MAP' : 'Normal',
+    'BUMP_NORMAL_MAP' : 'Bump + Normal',
+    'VECTOR_DISPLACEMENT_MAP' : 'Vector Displacement',
+}
 
 layer_type_items = (
     ('IMAGE', 'Image', ''),
@@ -2811,7 +2811,11 @@ def set_modifier_input_value(mod, socket_name, value):
     inp = get_tree_input_by_name(mod.node_group, socket_name)
     if not inp: return
 
-    mod[inp.identifier] = value
+    if is_bl_newer_than(5, 2):
+        mod_inp = getattr(mod.properties.inputs, inp.identifier)
+        mod_inp.value = value
+    else:
+        mod[inp.identifier] = value
 
 def new_tree_input(tree, name, socket_type, description='', use_both=False):
     if not is_bl_newer_than(4):
@@ -2835,9 +2839,12 @@ def new_tree_input(tree, name, socket_type, description='', use_both=False):
             inp.in_out = 'BOTH'
 
     if not inp: 
-        inp =  tree.interface.new_socket(name, description=description, in_out='INPUT', socket_type=socket_type)
+        inp = tree.interface.new_socket(name, description=description, in_out='INPUT', socket_type=socket_type)
 
-    if hasattr(inp, 'subtype'): inp.subtype = subtype
+    # NOTE: Setting subtype in Blender 5.1 Alpha here is causing the input socket to disappear
+    if hasattr(inp, 'subtype') and not is_bl_newer_than(5, 1):
+        inp.subtype = subtype
+
     return inp
 
 def new_tree_output(tree, name, socket_type, description='', use_both=False):
@@ -5124,7 +5131,7 @@ def set_active_paint_slot_entity(yp):
     is_multiple_mats = obj.type == 'MESH' and len(obj.data.materials) > 1
 
     # Set material active node 
-    if is_bl_newer_than(2, 81):
+    if mat and node and is_bl_newer_than(2, 81):
         node.select = True
         mat.node_tree.nodes.active = node
 
@@ -5252,15 +5259,17 @@ def set_active_paint_slot_entity(yp):
 
         scene.tool_settings.image_paint.mode = 'MATERIAL'
 
-        for idx, img in enumerate(mat.texture_paint_images):
-            if img == None: continue
-            if img.name == image.name:
-                mat.paint_active_slot = idx
-                # HACK: Just in case paint slot does not update (Necessary for Blender 5.0 and lower)
-                if not is_bl_newer_than(5, 1):
-                    wmyp.correct_paint_image_name = img.name
-                    wmyp.use_paint_slot_hacks = True
-                break
+        if mat:
+
+            for idx, img in enumerate(mat.texture_paint_images):
+                if img == None: continue
+                if img.name == image.name:
+                    mat.paint_active_slot = idx
+                    # HACK: Just in case paint slot does not update (Necessary for Blender 5.0 and lower)
+                    if not is_bl_newer_than(5, 1):
+                        wmyp.correct_paint_image_name = img.name
+                        wmyp.use_paint_slot_hacks = True
+                    break
         
     else:
         scene.tool_settings.image_paint.mode = 'IMAGE'
@@ -5364,7 +5373,7 @@ def set_active_uv_layer(obj, uv_name):
     for i, uv in enumerate(uv_layers):
         if uv.name == uv_name:
             h = uv_layers.active_index
-            if  h != i:
+            if h != i:
                 obj.data.uv_textures[h].active_render = False
                 uv_layers.active_index = i
                 obj.data.uv_textures[i].active_render = True

@@ -117,9 +117,12 @@ class YValidateObject(bpy.types.Operator):
             self.report({'INFO'}, f"Object renamed to comply with naming convention: {obj.name} -> {target_name}")
 
         ypo = obj.yp
+        if submesh_suffix:
+            ypo.asset_submesh_type = submesh_suffix
         asset_is_main = base_name == target_name
         mismatch_mesh = obj.data.name != target_name
         mismatch_material = mat.name != target_name if mat else False
+        uv_map_count = len(obj.data.uv_layers)
         units = bpy.context.scene.unit_settings
         uv_layer = get_uv_layers(obj)
         repair_code = -1
@@ -137,9 +140,12 @@ class YValidateObject(bpy.types.Operator):
         elif mismatch_mesh:
             repair_code = 11
             error_msg = "Mesh Name mismatch"
+        elif uv_map_count > 1:
+            repair_code = 100
+            error_msg = "Multiple UV Maps found"
         elif len(obj.material_slots) > 1:
             repair_code = 101
-            error_msg = "Object has more than one assigned Material"
+            error_msg = "Multiple Materials found"
         elif submesh_suffix and mat:
             repair_code = 102
             error_msg = "Submeshes should have no Material assigned"
@@ -184,10 +190,23 @@ class YRepairObject(bpy.types.Operator):
         obj_name = obj.name
         mat = get_active_material(obj)
         ypo = obj.yp
+        units = bpy.context.scene.unit_settings
 
         error_code = ypo.asset_needs_repair
         fixed = False
-        if error_code == 11:  # mesh name mismatch
+        if error_code == 1:
+            units.system = 'METRIC'
+            self.report({'INFO'}, "Scene unit System has been set to Metric")
+            fixed = True
+        elif error_code == 2:
+            units.scale_length = 0.01
+            self.report({'INFO'}, "Scene unit has been set to 0.01")
+            fixed = True
+        elif error_code == 3:
+            units.scale_length = 1.0
+            self.report({'INFO'}, "Scene unit has been set to 1.0")
+            fixed = True
+        elif error_code == 11:  # mesh name mismatch
             obj.data.name = obj_name
             self.report({'INFO'}, f"Mesh renamed to match object's name: {obj_name}")
             fixed = True
@@ -227,6 +246,7 @@ class YPrepareExportMesh(bpy.types.Operator):
 
     def execute(self, context):
         bpy.ops.wm.y_export_mesh('INVOKE_DEFAULT')
+        context.object.yp.asset_needs_repair = -1
         return {'FINISHED'}
 
 
@@ -283,7 +303,7 @@ class YExportMesh(bpy.types.Operator):
                 apply_scale_options='FBX_SCALE_NONE',
                 use_space_transform=True,
                 bake_space_transform=True,
-                object_types={'MESH'},
+                object_types={'MESH', 'ARMATURE'},
                 use_mesh_modifiers=True,
                 use_mesh_modifiers_render=False,
                 mesh_smooth_type='OFF',
@@ -312,7 +332,7 @@ class YExportMesh(bpy.types.Operator):
         self.previous_export_filepath = self.filepath  # Saves the filepath to the prop, ready to be recalled next time
 
         self.report({'INFO'}, f"{os.path.basename(self.filepath)} saved")
-
+        context.object.yp.asset_needs_repair = -1
         return {'FINISHED'}
 
 
@@ -325,6 +345,7 @@ class YSettingsJson(bpy.types.Operator):
     def execute(self, context):
         obj = context.object
         ypo = obj.yp
+        mat = get_active_material(obj)
         node = get_active_ypaint_node()
         group_tree = node.node_tree
         nodes = group_tree.nodes
@@ -371,9 +392,16 @@ class YSettingsJson(bpy.types.Operator):
             self.report({'ERROR'}, "No valid textures found. JSON would be empty.")
             return {'CANCELLED'}
 
-        # Generate JSON using only the found map types
-        if ypo.asset_uses_shared_from:
-            target = ypo.shared_from_name
+        # Generate JSON
+        if ypo.asset_uses_shared:
+            if ypo.asset_uses_shared_from == '':
+                if mat:
+                    target = mat.name
+                else:
+                    self.report({'ERROR'}, "No source object specified.")
+                    return {'CANCELLED'}
+            else:
+                target = ypo.asset_uses_shared_from
             for m in found_map_types:
                 shared_assets[f"{curr}_{m}.png"] = f"../{target}/{target}_{m}.png"
                 shared_assets[f"{curr}_LOD1_{m}.png"] = f"../{target}/{target}_{m}.png"
@@ -415,8 +443,8 @@ class YSettingsJson(bpy.types.Operator):
         if not text_area_found:
             areas_before = list(context.screen.areas)
 
-            # 4a. Split the current area to create a small footprint (35% width)
-            bpy.ops.screen.area_split(direction='VERTICAL', factor=0.35)
+            # 4a. Split the current area to create a small footprint (50% width)
+            bpy.ops.screen.area_split(direction='VERTICAL', factor=0.5)
 
             # 4b. Identify the newly created temporary area
             temp_area = None

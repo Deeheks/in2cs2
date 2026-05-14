@@ -2121,7 +2121,7 @@ class YSwitchToMaterialView(bpy.types.Operator):
     bl_idname = "wm.y_switch_to_material_view"
     bl_label = "Switch to Material View"
     bl_description = "Switch to use material view to see all the layer effects"
-    bl_options = {'REGISTER', 'INTERNAL'}
+    #bl_options = {'REGISTER', 'UNDO'}
 
     @classmethod
     def poll(cls, context):
@@ -2959,14 +2959,15 @@ def get_preview(mat, output=None, advanced=False, normal_viewer=False, normal_sp
                 tree, EMISSION_VIEWER, 'ShaderNodeEmission', 'Emission Viewer', 
                 return_status = True
             )
-        # Update the normal space
-        if normal_viewer:
-            transform = preview.node_tree.nodes.get('Vector Transform')
-            if transform: transform.convert_to = normal_space
 
-        # Matcap mode will be applied for camera space
-        inp = preview.inputs.get('Matcap Mode')
-        if inp: inp.default_value = 1.0 if normal_space == 'CAMERA' else 0.0
+    # Update the normal space
+    if normal_viewer:
+        transform = preview.node_tree.nodes.get('Vector Transform')
+        if transform: transform.convert_to = normal_space
+
+    # Matcap mode will be applied for camera space
+    inp = preview.inputs.get('Matcap Mode')
+    if inp: inp.default_value = 1.0 if normal_space == 'CAMERA' else 0.0
 
     if dirty:
         preview.hide = True
@@ -4562,11 +4563,12 @@ class YPaintObjectUVHash(bpy.types.PropertyGroup):
 class YPaintObjectProps(bpy.types.PropertyGroup):
     asset_needs_repair : IntProperty(default=-1)
     asset_error_msg : StringProperty(default='')
+    asset_submesh_type : StringProperty(default='')
     asset_lod1shares0 : BoolProperty(default=False)
-    asset_lod2shares0 : BoolProperty(default=False)
-    asset_lod2shares1 : BoolProperty(default=False)
+    asset_lod2shares0 : BoolProperty(description='Not recommended', default=False)
+    asset_lod2shares1 : BoolProperty(description='Not recommended', default=False)
     asset_uses_shared : BoolProperty(default=False)
-    asset_uses_shared_from : StringProperty(default='')
+    asset_uses_shared_from : StringProperty(description='Source Object Name', default='')
 
     ori_subsurf_render_levels : IntProperty(default=1)
     ori_subsurf_levels : IntProperty(default=1)
