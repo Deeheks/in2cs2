@@ -586,7 +586,9 @@ def load_preview(key:str, file_name:str):
         img = previews_users.load(key, file_name, 'IMAGE', True)
     return img
 
-def check_contributors(goal_ui: YSponsorProp):
+def check_contributors():
+    goal_ui = bpy.context.window_manager.ypui_credits
+
     if is_online():
         if not goal_ui.initialized: # first time init
             goal_ui.initialized = True
