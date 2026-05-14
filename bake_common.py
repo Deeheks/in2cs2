@@ -3135,12 +3135,18 @@ def bake_to_entity(bprops, overwrite_img=None, segment=None):
         bpy.ops.mesh.y_vcol_fill(color_option ='WHITE')
         bpy.ops.object.mode_set(mode = 'OBJECT')
 
+        # Get color alpha channel pair
+        root_color_ch, root_alpha_ch = get_color_alpha_ch_pairs(yp)
+
     # Check if there's channel using alpha
     alpha_outp = None
     for c in yp.channels:
         if c.enable_alpha:
             alpha_outp = node.outputs.get(c.name + io_suffix['ALPHA'])
             if alpha_outp: break
+
+    if not alpha_outp and root_alpha_ch:
+        alpha_outp = node.outputs.get(root_alpha_ch.name)
 
     # Prepare bake settings
     if bprops.type == 'AO':
@@ -3252,8 +3258,11 @@ def bake_to_entity(bprops, overwrite_img=None, segment=None):
             if main_uv and straight_uv:
                 flow_vcol = get_flow_vcol(ob, main_uv, straight_uv)
 
+    # Check if doing actual flip normals operator is needed
+    need_flip_normals = bprops.flip_normals and (bprops.type != 'AO' or alpha_outp or not is_bl_newer_than(2, 80))
+
     # Flip normals setup
-    if bprops.flip_normals:
+    if need_flip_normals:
         for ob in objs:
             if ob in other_objs: continue
             flip_mesh_normals(ob)
@@ -3373,6 +3382,9 @@ def bake_to_entity(bprops, overwrite_img=None, segment=None):
             else:
                 mat.node_tree.links.new(src.outputs['AO'], bsdf.inputs[0])
                 mat.node_tree.links.new(bsdf.outputs[0], output.inputs[0])
+
+                if bprops.flip_normals:
+                    src.inside = True
 
     elif bprops.type == 'POINTINESS':
         src = mat.node_tree.nodes.new('ShaderNodeNewGeometry')
@@ -4200,7 +4212,7 @@ def bake_to_entity(bprops, overwrite_img=None, segment=None):
             if vcol: vcols.remove(vcol)
 
     # Recover flip normals setup
-    if bprops.flip_normals:
+    if need_flip_normals_ops:
         for ob in objs:
             if ob in other_objs: continue
             flip_mesh_normals(ob)
