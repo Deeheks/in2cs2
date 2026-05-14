@@ -658,7 +658,8 @@ eraser_names = {
 tex_eraser_asset_names = [
     'Erase Hard',
     'Erase Hard Pressure',
-    'Erase Soft'
+    'Erase Soft',
+    'Erase Pixel Art'
 ]
 
 tex_default_brushes = [
@@ -667,6 +668,7 @@ tex_default_brushes = [
     'Paint Hard Pressure',
     'Paint Soft',
     'Paint Soft Pressure',
+    'Paint Pixel Art',
 ]
 
 alpha_mode_labels = {
@@ -2158,7 +2160,7 @@ def simple_replace_new_node(tree, node_name, node_id_name, label='', group_name=
 
         # Check if group is copied
         if prev_tree:
-            m = re.match(r'^' + group_name + '_Copy\.*\d{0,3}$', prev_tree.name)
+            m = re.match(r'^' + group_name + r'_Copy\.*\d{0,3}$', prev_tree.name)
         else: m = None
 
         #print(prev_tree)
@@ -2225,7 +2227,7 @@ def replace_new_node(tree, entity, prop, node_id_name, label='', group_name='', 
 
         # Check if group is copied
         if prev_tree:
-            m = re.match(r'^' + group_name + '_Copy\.*\d{0,3}$', prev_tree.name)
+            m = re.match(r'^' + group_name + r'_Copy\.*\d{0,3}$', prev_tree.name)
         else: m = None
 
         #print(prev_tree)
@@ -4666,7 +4668,7 @@ def get_bump_chain(layer, ch=None):
 
 def check_if_node_is_duplicated_from_lib(node, lib_name):
     if not node or node.type != 'GROUP': return False
-    m = re.match(r'^' + lib_name + '_Copy\.*\d{0,3}$', node.node_tree.name)
+    m = re.match(r'^' + lib_name + r'_Copy\.*\d{0,3}$', node.node_tree.name)
     if m: return True
     return False
 
