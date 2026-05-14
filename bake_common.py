@@ -3080,7 +3080,7 @@ def bake_to_entity(bprops, overwrite_img=None, segment=None):
         objs.extend(other_objs)
 
     # Join objects if the number of objects is higher than one
-    elif not bprops.type.startswith('MULTIRES_') and len(objs) > 1 and not is_join_objects_problematic(yp):
+    elif not bprops.type.startswith('MULTIRES_') and bprops.type not in {'SELECTED_VERTICES'} and len(objs) > 1 and not is_join_objects_problematic(yp):
         temp_objs.extend([get_merged_mesh_objects(scene, objs, True)])
         objs = temp_objs
 
@@ -3091,12 +3091,19 @@ def bake_to_entity(bprops, overwrite_img=None, segment=None):
             fill_mode = 'VERTEX'
 
         if is_bl_newer_than(2, 80):
-            edit_objs = [o for o in objs if o.mode == 'EDIT']
+            if obj.mode == 'EDIT':
+                edit_objs = [o for o in objs if o.mode == 'EDIT']
+            else: edit_objs = objs
         else: edit_objs = [obj]
 
         for ob in edit_objs:
             mesh = ob.data
-            bm = bmesh.from_edit_mesh(mesh)
+
+            if obj.mode == 'EDIT':
+                bm = bmesh.from_edit_mesh(mesh)
+            else:
+                bm = bmesh.new()
+                bm.from_mesh(mesh)
 
             bm.verts.ensure_lookup_table()
             #bm.edges.ensure_lookup_table()
@@ -3117,7 +3124,8 @@ def bake_to_entity(bprops, overwrite_img=None, segment=None):
 
             obj_vertex_indices[ob.name] = v_indices
 
-        bpy.ops.object.mode_set(mode = 'OBJECT')
+        if obj.mode != 'OBJECT':
+            bpy.ops.object.mode_set(mode = 'OBJECT')
         for ob in objs:
             try:
                 vcol = new_vertex_color(ob, TEMP_VCOL, color_fill=(0.0, 0.0, 0.0, 1.0))
