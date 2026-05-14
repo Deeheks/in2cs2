@@ -1,4 +1,4 @@
-import bpy, time, re
+import bpy, time, re, bmesh
 from bpy.props import *
 from bpy.app.handlers import persistent
 from .common import *
@@ -209,16 +209,13 @@ class YSelectMaterialPolygons(bpy.types.Operator):
 
     @classmethod
     def poll(cls, context):
-        return context.object
+        return context.object and context.object.type == 'MESH'
 
     @classmethod
     def description(self, context, properties):
         return get_operator_description(self)
 
     def invoke(self, context, event):
-        if not is_bl_newer_than(2, 80):
-            self.execute(context)
-
         obj = context.object
 
         # Always set new uv to false to avoid unwanted new uv
@@ -236,9 +233,6 @@ class YSelectMaterialPolygons(bpy.types.Operator):
         for uv in get_uv_layers(obj):
             if not uv.name.startswith(TEMP_UV):
                 self.uv_map_coll.add().name = uv.name
-        
-        if get_user_preferences().skip_property_popups and not event.shift:
-            return self.execute(context)
 
         return context.window_manager.invoke_props_dialog(self, width=400)
 
@@ -254,38 +248,45 @@ class YSelectMaterialPolygons(bpy.types.Operator):
         self.layout.prop(self, "set_canvas_to_empty")
 
     def execute(self, context):
-        if not is_bl_newer_than(2, 80):
-            self.report({'ERROR'}, "This feature only works in Blender 2.8+")
-            return {'CANCELLED'}
-
         if (self.new_uv and self.new_uv_name == '') or (not self.new_uv and self.uv_map == ''):
             self.report({'ERROR'}, "UV name cannot be empty!")
             return {'CANCELLED'}
 
         obj = context.object
         mat = obj.active_material
-
-        objs = []
-        for o in get_scene_objects():
-            if o.type != 'MESH': continue
-            if is_layer_collection_hidden(o): continue
-            if mat.name in o.data.materials:
-                o.select_set(True)
-                objs.append(o)
-            else: o.select_set(False)
-
-        bpy.ops.object.mode_set(mode='EDIT')
-        bpy.context.tool_settings.mesh_select_mode = (False, False, True)
-        bpy.ops.mesh.reveal()
-        bpy.ops.mesh.select_all(action='DESELECT')
-
-        bpy.ops.object.mode_set(mode='OBJECT')
-
         uv_name = self.uv_map if not self.new_uv else get_unique_name(self.new_uv_name, get_uv_layers(obj))
 
-        for o in objs:
+        if is_bl_newer_than(2, 80):
+            objs = []
+            for o in get_scene_objects():
+                if o.type != 'MESH': continue
+                if is_layer_collection_hidden(o): continue
+                if mat.name in o.data.materials:
+                    o.select_set(True)
+                    objs.append(o)
+                else:
+                    o.select_set(False)
+        else:
+            objs = [obj]
 
-            #if uv_name != '':
+        # Go to edit mode
+        if obj.mode != 'EDIT':
+            bpy.ops.object.mode_set(mode='EDIT')
+
+        # Select polygon select mode
+        bpy.context.tool_settings.mesh_select_mode = (False, False, True)
+
+        # Unhide all polygons
+        bpy.ops.mesh.reveal()
+
+        for o in objs:
+            # Find the material index
+            mat_index = [i for i, m in enumerate(o.data.materials) if m == mat]
+            if mat_index:
+                mat_index = mat_index[0]
+            else:
+                continue
+
             # Get uv layer
             uv_layers = get_uv_layers(o)
             uvl = uv_layers.get(uv_name)
@@ -295,18 +296,25 @@ class YSelectMaterialPolygons(bpy.types.Operator):
                 uvl = uv_layers.new(name=uv_name)
             uv_layers.active = uvl
 
-            active_mat_id = [i for i, m in enumerate(o.data.materials) if m == mat][0]
-            # Select polygons
-            for p in o.data.polygons:
-                if p.material_index == active_mat_id:
-                    p.select = True
-                else: p.select = False
+            # Select the faces
+            me = o.data
+            bm = bmesh.from_edit_mesh(me)
+            for face in bm.faces:
+                if face.material_index == mat_index:
+                    face.select = True
+                else:
+                    face.select = False
 
-        bpy.ops.object.mode_set(mode='EDIT')
+            # Required: Flush selection to update verts/edges and notify Blender of changes
+            bm.select_flush(True)
+            bmesh.update_edit_mesh(me)
 
         if self.set_canvas_to_empty:
+            # Set image editor image to empty
             update_image_editor_image(context, None)
             set_image_paint_canvas(None)
+
+        return {'FINISHED'}
 
         return {'FINISHED'}
 
