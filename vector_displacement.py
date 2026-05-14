@@ -673,8 +673,12 @@ def bake_multires_image(obj, image, uv_name, intensity=1.0, flip_yz=False):
     multires = get_multires_modifier(obj)
     if not multires: return
 
+    # NOTE: Native baking on mesh with simple subsurf currently produces wrong result (tested in Feb 2026)
+    subsurf = get_subsurf_modifier(obj)
+    is_simple_subdivision = subsurf.subdivision_type == 'SIMPLE' if subsurf else False
+
     # Blender 5.0 introduce native VDM baking from multires
-    native_baking = is_bl_newer_than(5)
+    native_baking = is_bl_newer_than(5) and not is_simple_subdivision
 
     # Get combined but active layer disabled image
     layer_disabled_vdm_image = None
@@ -1061,6 +1065,7 @@ def get_combined_vdm_image(obj, uv_name, width=1024, height=1024, disable_curren
     return image
 
 def get_tangent_bitangent_images(obj, uv_name):
+
     ori_mode = obj.mode
     if ori_mode == 'EDIT':
         bpy.ops.object.mode_set(mode='OBJECT')
@@ -1140,7 +1145,7 @@ def get_tangent_bitangent_images(obj, uv_name):
 
             temp.data.calc_tangents()
 
-            # Bitangent sign attribute's
+        # Bitangent sign attribute's
         bs_att = temp.data.attributes.get(BSIGN_ATTR)
         if not bs_att:
             bs_att = temp.data.attributes.new(BSIGN_ATTR, 'FLOAT', 'CORNER')
