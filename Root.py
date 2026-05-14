@@ -316,8 +316,6 @@ class YSelectMaterialPolygons(bpy.types.Operator):
 
         return {'FINISHED'}
 
-        return {'FINISHED'}
-
 class YRenameUVMaterial(bpy.types.Operator):
     bl_idname = "wm.y_rename_uv_using_the_same_material"
     bl_label = "Rename UV that using same Material"
@@ -2708,6 +2706,35 @@ class YFixMissingData(bpy.types.Operator):
 
         return {'FINISHED'}
 
+class YRemoveMio3Checker(bpy.types.Operator):
+    bl_idname = "wm.y_remove_mio3_uv_checker"
+    bl_label = "Remove Mio3 UV Checker"
+    bl_description = "Remove Mio3 UV checker material"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        return bpy.context.object
+
+    def execute(self, context):
+
+        # Switch to material view
+        space = bpy.context.space_data
+        if not is_bl_newer_than(2, 80):
+            space.viewport_shade = 'MATERIAL'
+        else: space.shading.type = 'MATERIAL'
+
+        # Remove Mio3 modifier
+        if hasattr(bpy.ops, 'mio3uv') and hasattr(bpy.ops.mio3uv, 'checker_map_cleanup'):
+            bpy.ops.mio3uv.checker_map_cleanup()
+        else:
+            obj = bpy.context.object
+            for mod in reversed(bpy.context.object.modifiers):
+                if mod.type == 'NODES' and mod.node_group and mod.node_group.name == 'Mio3MaterialOverride':
+                    obj.modifiers.remove(mod)
+
+        return {'FINISHED'}
+
 class YRefreshTangentSignVcol(bpy.types.Operator):
     bl_idname = "wm.y_refresh_tangent_sign_vcol"
     bl_label = "Refresh Tangent Sign "+get_vertex_color_label()+"s"
@@ -2896,7 +2923,6 @@ def update_channel_name(self, context):
 
 def get_preview(mat, output=None, advanced=False, normal_viewer=False, normal_space='CAMERA'):
     tree = mat.node_tree
-    #nodes = tree.nodes
 
     # Search for output
     if not output:
@@ -4357,17 +4383,16 @@ class YPaint(bpy.types.PropertyGroup):
         update = update_preview_mode
     )
 
-    preview_mode_normal_space: EnumProperty(
-        name='Preview Mode Normal Space',
-        description='Preview mode space to normal channel',
-        items=(
-            ('CAMERA', 'View Space',
-             'Encode normal output and transform it into view space.\nNOTE: This also will apply special calculation to make the output looks like a matcap shader.'),
+    preview_mode_normal_space : EnumProperty(
+        name = 'Preview Mode Normal Space',
+        description = 'Preview mode space to normal channel',
+        items = (
+            ('CAMERA', 'View Space', 'Encode normal output and transform it into view space.\nNOTE: This also will apply special calculation to make the output looks like a matcap shader.'),
             ('WORLD', 'World Space', 'Encode normal output and transform it into world space'),
             ('OBJECT', 'Object Space', 'Encode normal output and transform it into object space'),
         ),
-        default='CAMERA',
-        update=update_preview_mode_normal_space
+        default = 'CAMERA',
+        update = update_preview_mode_normal_space
     )
 
     # Disable all vector displacement layers when sculpt mode is on
@@ -4834,7 +4859,8 @@ def ypaint_force_update_on_anim(scene):
                         else:
                             continue
 
-                    else: continue
+                    else:
+                        continue
 
                 # Check if path is an array
                 elif hasattr(ng.path_resolve(fc.data_path), '__len__'):
@@ -4871,6 +4897,7 @@ def register():
     bpy.utils.register_class(YDuplicateYPNodes)
     bpy.utils.register_class(YOptimizeNormalProcess)
     bpy.utils.register_class(YFixMissingData)
+    bpy.utils.register_class(YRemoveMio3Checker)
     bpy.utils.register_class(YRefreshTangentSignVcol)
     bpy.utils.register_class(YRemoveYPaintNode)
     bpy.utils.register_class(YCleanYPCaches)
@@ -4937,6 +4964,7 @@ def unregister():
     bpy.utils.unregister_class(YDuplicateYPNodes)
     bpy.utils.unregister_class(YOptimizeNormalProcess)
     bpy.utils.unregister_class(YFixMissingData)
+    bpy.utils.unregister_class(YRemoveMio3Checker)
     bpy.utils.unregister_class(YRefreshTangentSignVcol)
     bpy.utils.unregister_class(YRemoveYPaintNode)
     bpy.utils.unregister_class(YCleanYPCaches)
