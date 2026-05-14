@@ -1119,21 +1119,25 @@ def get_tangent_bitangent_images(obj, uv_name):
         try:
             temp.data.calc_tangents()
         except:
-            # Triangulate ngon faces on temp object
-            bpy.ops.object.select_all(action='DESELECT')
-            temp.select_set(True)
-            bpy.ops.object.mode_set(mode='EDIT')
-            bpy.ops.mesh.reveal()
-            bpy.ops.mesh.select_all(action='DESELECT')
-            bpy.ops.mesh.select_mode(type="FACE")
-            bpy.ops.mesh.select_face_by_sides(number=4, type='GREATER')
-            bpy.ops.mesh.quads_convert_to_tris()
-            bpy.ops.mesh.tris_convert_to_quads()
-            bpy.ops.object.mode_set(mode='OBJECT')
+            # Triangulate ngon faces on temp object using bmesh
+            bm = bmesh.new()
+            bm.from_mesh(temp.data)
 
-            temp.data.calc_tangents()   
+            # Triangulate faces with more than 4 vertices
+            faces_to_tri = [f for f in bm.faces if len(f.verts) > 4]
+            if faces_to_tri:
+                bmesh.ops.triangulate(bm, faces=faces_to_tri)
 
-        # Bitangent sign attribute's
+            # Convert back to quads
+            bmesh.ops.planar_faces(bm, faces=bm.faces[:])
+
+            bm.to_mesh(temp.data)
+            bm.free()
+            temp.data.update()
+
+            temp.data.calc_tangents()
+
+            # Bitangent sign attribute's
         bs_att = temp.data.attributes.get(BSIGN_ATTR)
         if not bs_att:
             bs_att = temp.data.attributes.new(BSIGN_ATTR, 'FLOAT', 'CORNER')
