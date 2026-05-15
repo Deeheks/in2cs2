@@ -1842,7 +1842,7 @@ class YBakeChannels(bpy.types.Operator, BaseBakeOperator):
         # Can only happen when only active channel is off since require all baked images to have the same resolution
         if not self.only_active_channel:
             for bt in yp.bake_targets:
-                print("INFO: Processing custom bake target '" + bt.name + "'...")
+                print('INFO: Processing texture', bt.name, '...')
                 bt_node = tree.nodes.get(bt.image_node)
                 btimg = bt_node.image if bt_node and bt_node.image else None 
                 

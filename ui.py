@@ -376,7 +376,7 @@ def draw_image_props(context, source, layout, entity=None, show_flip_y=False, sh
             image_bit = int(image.depth / 3)
 
         col.label(
-            text='Info: ' + str(image.size[0]) + ' x ' + str(image.size[1]) +
+            text='INFO: ' + str(image.size[0]) + ' x ' + str(image.size[1]) +
                 ' ' + image_format + ' ' + str(image_bit) + '-bit'
         )
 
