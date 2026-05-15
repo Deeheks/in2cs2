@@ -3666,7 +3666,7 @@ def draw_layers_ui(context, layout, node):
         row = box.row(align=True)
         icon = 'FILE_TICK'
         row.operator('wm.y_save_all_baked_images', text='Save All...', icon=icon).copy = False
-        row.operator('wm.y_save_all_baked_images', text='Save CS2...', icon=icon).only_bake_targets = True
+        row.operator('wm.y_save_all_baked_images', text='Save All as Copies...', icon=icon).copy = True
 
         icon = 'TRASH' if is_bl_newer_than(2, 80) else 'CANCEL'
         row.operator('wm.y_delete_baked_channel_images', text='', icon=icon)
@@ -4375,8 +4375,15 @@ def main_draw(self, context):
                 rrow = box.row(align=True)
                 rrow.prop(ypo, 'asset_uses_shared_from', text='Source')
             if node:
+                group_tree = node.node_tree.nodes
                 ypn = node.node_tree.yp
-                if ypn and ypn.use_baked:
+                found_baked = False
+                if ypn:
+                    for ch in ypn.channels:
+                        baked = group_tree.get(ch.baked)
+                        if baked:
+                            found_baked = True
+                if ypn and found_baked:
                     rrow = box.row(align=True)
                     rrow.operator('wm.y_settings_json', text="Create Settings.json", icon='FILE_TEXT')
         col = box.column()
@@ -4654,14 +4661,21 @@ def main_draw(self, context):
     # Textures (aka Custom Bake Targets)
     icon = 'TRIA_DOWN' if ypui.show_bake_targets else 'TRIA_RIGHT'
     row = layout.row(align=True)
+    rrow = row.row(align=True)
 
     if is_bl_newer_than(2, 80):
-        row.alignment = 'LEFT'
-        row.scale_x = 0.95
-        row.prop(ypui, 'show_bake_targets', emboss=False, text='Textures', icon=icon)
+        rrow.alignment = 'LEFT'
+        rrow.scale_x = 0.95
+        rrow.prop(ypui, 'show_bake_targets', emboss=False, text='Textures', icon=icon)
     else:
-        row.prop(ypui, 'show_bake_targets', emboss=False, text='', icon=icon)
-        row.label(text='Textures')
+        rrow.prop(ypui, 'show_bake_targets', emboss=False, text='', icon=icon)
+        rrow.label(text='Textures')
+
+    if (baked_found or yp.use_baked) and not group_tree.users > 1:
+        rrow = row.row(align=True)
+        if is_bl_newer_than(2, 80):
+            rrow.alignment = 'RIGHT'
+        rrow.operator('wm.y_save_all_baked_images', text='Save CS2 Textures', icon='FILE_TICK').only_bake_targets = True
 
     if ypui.show_bake_targets:
         if len(yp.bake_targets) == 0:

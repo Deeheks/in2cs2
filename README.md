@@ -2,11 +2,9 @@
 
 - Based on **ucupaint** Blender addon
    - years of development and artists usage and feedback
-   - free alternative to Substance Painter and/or Photoshop (although still useful next to it)
-- Works on **any Blender version** (2.7 until 5.1)
-- Bake textures **directly to CS2 render pipeline** without leaving Blender  
-   - no need to swizzle channels in Photoshop, superPNG!
-   - work from Blender directly into Cities Skylines 2 editor
+   - free alternative to Substance Painter
+- Works on **any Blender version** (2.7 until 5.2)
+- Bake textures **directly to CS2 render pipeline** without leaving Blender
 
 > *About ucupaint*
 > - Ucupaint Download/Repo : [https://github.com/ucupumar/ucupaint](https://github.com/ucupumar/ucupaint "https://github.com/ucupumar/ucupaint")
@@ -48,7 +46,7 @@ Cities Skylines II asset creators, from beginner to expert.
    - matches material and object name
    - matches mesh and object name
    - supports all possible LOD types and submesh prefixes
-- **Smart FBX export** function (file named after the object)
+- **Smart FBX export** with automatic File naming
    - supports modifiers (non-destructive export)
    - supports non-zeroed location (applies only Rotation and Scale)
       - allows side-by-side asset placement in the scene

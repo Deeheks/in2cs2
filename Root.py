@@ -2284,8 +2284,9 @@ class YRenameYPaintTree(bpy.types.Operator):
     def invoke(self, context, event):
         node = get_active_ypaint_node()
         tree = node.node_tree
+        obj = get_active_object()
 
-        self.name = tree.name
+        self.name = tree.name if obj.yp.asset_uses_shared else obj.name
         return context.window_manager.invoke_props_dialog(self)
 
     def draw(self, context):
@@ -2297,18 +2298,29 @@ class YRenameYPaintTree(bpy.types.Operator):
     def execute(self, context):
         node = get_active_ypaint_node()
         tree = node.node_tree
+        tree_old_name = tree.name
         yp = tree.yp
+
+        tree_new_name = self.name
+        tree.name = get_unique_name(tree_new_name, bpy.data.node_groups)
+        self.report({'INFO'}, tree_old_name + " Tree renamed: " + tree.name)
 
         if self.rename_active_images and len(yp.bake_targets) > 0:
             for bt in yp.bake_targets:
-                img_name = bt.name.replace(tree.name,self.name)
-                bt.name = get_unique_name(img_name, bpy.data.images)
+                img_old_name = bt.name
+                if bt.image_node:
+                    image_node = tree.nodes.get(bt.image_node)
+                    image = image_node.image if image_node else None
+                    if image:
+                        img_new_name = img_old_name.replace(tree_old_name, self.name)
+                        image.name = get_unique_name(img_new_name, bpy.data.images)
+                        bt.name = image.name
+                        self.report({'INFO'}, img_old_name + " Texture renamed: " + image.name)
 
-        tree.name = get_unique_name(self.name, bpy.data.images)
-
-        # if self.rename_active_material:
-        #     mat = get_active_material()
-        #     mat.name = self.name
+        mat = get_active_material()
+        if mat.name == tree_old_name:
+            mat.name = self.name
+            self.report({'INFO'}, tree_old_name + " Material renamed: " + mat.name)
         return {'FINISHED'}
 
 class YChangeActiveYPaintNode(bpy.types.Operator):
