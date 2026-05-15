@@ -51,3 +51,6 @@ Cities Skylines II asset creators, from beginner to expert.
    - supports non-zeroed location (applies only Rotation and Scale)
       - allows side-by-side asset placement in the scene
       - prevents missed exports with bad scaling or Z-up imported meshes
+- **Settings.json file** generator
+  - Supports internal and external material sharing
+  - Uses built-in Blender text-editor, allowing review before saving
