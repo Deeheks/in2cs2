@@ -10,7 +10,7 @@
 > - Ucupaint Download/Repo : [https://github.com/ucupumar/ucupaint](https://github.com/ucupumar/ucupaint "https://github.com/ucupumar/ucupaint")
 > - Ucupaint Wiki/Documentation : [https://ucupumar.github.io/ucupaint-wiki/](https://ucupumar.github.io/ucupaint-wiki/ "https://ucupumar.github.io/ucupaint-wiki/")
 
-### Download [V2.4.5](https://github.com/Deeheks/in2cs2/releases/download/2.4.4/in2cs2.zip "https://github.com/Deeheks/in2cs2/releases/download/2.4.5/in2cs2.zip")
+### Download [V2.4.5](https://github.com/Deeheks/in2cs2/releases/download/2.4.5/in2cs2.zip "https://github.com/Deeheks/in2cs2/releases/download/2.4.5/in2cs2.zip")
 
 ### Who is this for
 
@@ -51,3 +51,6 @@ Cities Skylines II asset creators, from beginner to expert.
    - supports non-zeroed location (applies only Rotation and Scale)
       - allows side-by-side asset placement in the scene
       - prevents missed exports with bad scaling or Z-up imported meshes
+- **Settings.json file** generator
+  - Supports internal and external material sharing
+  - Uses built-in Blender text-editor, allowing review before saving
