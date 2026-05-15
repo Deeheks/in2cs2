@@ -10,7 +10,7 @@
 > - Ucupaint Download/Repo : [https://github.com/ucupumar/ucupaint](https://github.com/ucupumar/ucupaint "https://github.com/ucupumar/ucupaint")
 > - Ucupaint Wiki/Documentation : [https://ucupumar.github.io/ucupaint-wiki/](https://ucupumar.github.io/ucupaint-wiki/ "https://ucupumar.github.io/ucupaint-wiki/")
 
-### Download [V2.4.5](https://github.com/Deeheks/in2cs2/releases/download/2.4.5/in2cs2.zip "https://github.com/Deeheks/in2cs2/releases/download/2.4.5/in2cs2.zip")
+### Download [V2.4.5](https://github.com/Deeheks/in2cs2/releases/download/2.4.5/in2cs2-245.zip "https://github.com/Deeheks/in2cs2/releases/download/2.4.5/in2cs2-245.zip")
 
 ### Who is this for
 
