@@ -4560,15 +4560,12 @@ def main_draw(self, context):
             col.operator("wm.y_update_remove_smooth_bump", text='Remove Smooth Bump')
             #return
 
-    #layout.label(text='Active: ' + node.node_tree.name, icon_value=lib.get_icon('nodetree'))
     row = layout.row(align=True)
     row.label(text='', icon_value=lib.get_icon('nodetree'))
-    #row.label(text='Active: ' + node.node_tree.name)
     row.label(text=node.node_tree.name)
-    #row.prop(node.node_tree, 'name', text='')
 
-    icon = 'PREFERENCES' if is_bl_newer_than(2, 80) else 'CLEAN_ICON'
-    row.menu("NODE_MT_ypaint_main_menu", text='', icon=icon)
+    mrow = row.box()
+    mrow.menu("NODE_MT_ypaint_main_menu", text='', icon='COLLAPSEMENU')
 
     # Check for baked node
     baked_found = False
