@@ -120,6 +120,7 @@ class YValidateObject(bpy.types.Operator):
         if submesh_suffix:
             ypo.asset_submesh_type = submesh_suffix
         asset_is_main = base_name == target_name
+        asset_is_rigged = is_mesh_rigged(obj)
         mismatch_mesh = obj.data.name != target_name
         mismatch_material = mat.name != target_name if mat else False
         uv_map_count = len(obj.data.uv_layers)
@@ -130,11 +131,10 @@ class YValidateObject(bpy.types.Operator):
         if units.system != 'METRIC':
             repair_code = 1
             error_msg = "Scene unit System should be set to Metric"
-        elif is_mesh_rigged(obj):
-            if round(units.scale_length, 4) != 0.01:  # 0.01 scaling accounts for rigged meshes hack prior to official support
-                repair_code = 2
-                error_msg = "Scene unit Scale should be 0.01 for Rigged objects"
-        elif round(units.scale_length, 4) != 1.0:
+        elif round(units.scale_length, 4) != 0.01 and asset_is_rigged:  # 0.01 scaling accounts for rigged meshes hack prior to official support
+            repair_code = 2
+            error_msg = "Scene unit Scale should be 0.01 for Rigged objects"
+        elif round(units.scale_length, 4) != 1.0 and not asset_is_rigged:
             repair_code = 3
             error_msg = "Scene unit Scale should be 1.0 for Static objects"
         elif mismatch_mesh:
